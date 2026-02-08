@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * BBS Podcast Platform - Setup Script
- * Usage: node scripts/setup.js --dev | --prod | --only-db | --app-only
+ * Usage: node scripts/setup.js --dev | --prod | --only-db | --app-only | --db-only-ssh | --app-only-ssh
  */
 
 const fs = require('fs');
@@ -14,9 +14,21 @@ const { execSync, spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const ENV_PATH = path.join(ROOT, '.env');
+const CREDS_PATH = path.join(ROOT, 'podcast-ssh-credentials.json');
 
 function print(msg) {
   console.log(msg);
+}
+
+function loadEnv() {
+  if (!fs.existsSync(ENV_PATH)) return {};
+  const content = fs.readFileSync(ENV_PATH, 'utf8');
+  const out = {};
+  for (const line of content.split('\n')) {
+    const m = line.match(/^([^#=]+)=(.*)$/);
+    if (m) out[m[1].trim()] = m[2].trim();
+  }
+  return out;
 }
 
 function isDockerReady() {
@@ -63,9 +75,7 @@ function tryInstallDocker() {
   try {
     if (os.platform() === 'win32') {
       print('Versuche Docker mit winget zu installieren...');
-      execSync('winget install Docker.DockerDesktop --accept-package-agreements --accept-source-agreements', {
-        stdio: 'inherit',
-      });
+      execSync('winget install Docker.DockerDesktop --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
       return true;
     }
     if (os.platform() === 'darwin') {
@@ -81,24 +91,18 @@ function tryInstallDocker() {
 
 function ensureDockerReady() {
   if (isDockerReady()) return;
-
   print('\nDocker ist nicht bereit.');
-
   try {
     execSync('docker --version', { stdio: 'pipe' });
   } catch (_) {
     print('Docker scheint nicht installiert zu sein.');
     if (tryInstallDocker()) {
       print('\nDocker wurde installiert. Starte Docker Desktop und führe dieses Skript erneut aus.');
-      print('Möglicherweise ist ein Neustart nötig.\n');
       process.exit(0);
     }
-    print('\nInstallation fehlgeschlagen. Bitte Docker manuell installieren:');
-    print('  Windows: https://docs.docker.com/desktop/install/windows-install/');
-    print('  Oder: winget install Docker.DockerDesktop\n');
+    print('\nInstallation fehlgeschlagen. Bitte Docker manuell installieren.');
     process.exit(1);
   }
-
   print('Docker-Daemon läuft nicht. Starte Docker Desktop...');
   if (tryStartDockerDesktop()) {
     print('Warte auf Docker (bis zu 90 Sekunden)...');
@@ -110,16 +114,15 @@ function ensureDockerReady() {
       const deadline = Date.now() + 3000;
       while (Date.now() < deadline) {}
     }
-    print('\nDocker startet zu langsam. Bitte starte Docker Desktop manuell und führe das Skript erneut aus.\n');
+    print('\nDocker startet zu langsam. Bitte starte Docker Desktop manuell.\n');
     process.exit(1);
   }
-
-  print('\nDocker Desktop wurde nicht gefunden. Bitte starte Docker manuell und führe das Skript erneut aus.\n');
+  print('\nDocker Desktop wurde nicht gefunden. Bitte starte Docker manuell.\n');
   process.exit(1);
 }
 
 function waitForApp(baseUrl, maxAttempts = 60) {
-  const url = baseUrl.replace(/\/$/, '') + '/api/health';
+  const url = (baseUrl.replace(/\/$/, '') + '/api/health');
   const parsed = new URL(url);
   const isHttps = parsed.protocol === 'https:';
   const client = isHttps ? https : http;
@@ -143,27 +146,18 @@ function waitForApp(baseUrl, maxAttempts = 60) {
               }
             } catch (_) {}
           }
-          if (attempts >= maxAttempts) {
-            reject(new Error('App oder DB-Verbindung nicht bereit'));
-            return;
-          }
-          setTimeout(tryFetch, 2000);
+          if (attempts >= maxAttempts) reject(new Error('App oder DB-Verbindung nicht bereit'));
+          else setTimeout(tryFetch, 2000);
         });
       });
       req.on('error', () => {
-        if (attempts >= maxAttempts) {
-          reject(new Error('App nicht erreichbar unter ' + checkUrl));
-          return;
-        }
-        setTimeout(tryFetch, 2000);
+        if (attempts >= maxAttempts) reject(new Error('App nicht erreichbar'));
+        else setTimeout(tryFetch, 2000);
       });
       req.on('timeout', () => {
         req.destroy();
-        if (attempts >= maxAttempts) {
-          reject(new Error('App antwortet nicht'));
-          return;
-        }
-        setTimeout(tryFetch, 2000);
+        if (attempts >= maxAttempts) reject(new Error('App antwortet nicht'));
+        else setTimeout(tryFetch, 2000);
       });
     };
     tryFetch();
@@ -218,28 +212,67 @@ function getLocalIP() {
   return '127.0.0.1';
 }
 
+function tryUpnpPortForward(port) {
+  try {
+    const natUpnp = require('nat-upnp');
+    const client = natUpnp.createClient();
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 5000);
+      client.portMapping({ public: port, private: port, ttl: 3600 }, (err) => {
+        clearTimeout(timeout);
+        resolve(err ? null : true);
+      });
+    });
+  } catch (e) {
+    return Promise.resolve(null);
+  }
+}
+
+function tryGetExternalIp() {
+  try {
+    const natUpnp = require('nat-upnp');
+    const client = natUpnp.createClient();
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 5000);
+      client.externalIp((err, ip) => {
+        clearTimeout(timeout);
+        resolve(err ? null : ip);
+      });
+    });
+  } catch (e) {
+    return Promise.resolve(null);
+  }
+}
+
+async function fetchExternalIp() {
+  return new Promise((resolve) => {
+    const req = http.get('http://api.ipify.org', { timeout: 5000 }, (res) => {
+      let data = '';
+      res.on('data', (ch) => (data += ch));
+      res.on('end', () => resolve(data.trim() || null));
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
 async function setupDev(rl) {
   print('\n=== Entwicklungs-Setup (localhost, SQLite) ===\n');
-
-  const env = `# Entwicklungs-Setup - automatisch generiert
+  const env = `# Entwicklungs-Setup
 PORT=3000
 HOST=0.0.0.0
 PUBLIC_URL=http://localhost:3000
 JWT_SECRET=dev-secret-change-in-production
 DB_PATH=./data/podcasts.db
 `;
-
   fs.writeFileSync(ENV_PATH, env);
-  print('Erstellt: .env (localhost-Konfiguration)\n');
-
+  print('Erstellt: .env\n');
   print('Installiere Abhängigkeiten...');
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
-    print('npm install abgeschlossen.\n');
   } catch (e) {
-    print('Hinweis: npm install fehlgeschlagen. Führe es manuell aus: npm install\n');
+    print('Hinweis: npm install fehlgeschlagen. Führe es manuell aus.\n');
   }
-
   print('Entwicklungs-Setup fertig.');
   print('\nStart: npm start');
   print('Oder mit Docker: docker compose up -d');
@@ -247,21 +280,18 @@ DB_PATH=./data/podcasts.db
 }
 
 async function setupProd(rl) {
-  print('\n=== Produktions-Setup (öffentliche Domain, PostgreSQL) ===\n');
-  print('Gib die folgenden Werte ein. Du kannst sie später in .env anpassen.\n');
-
-  const publicUrl = await ask(rl, 'PUBLIC_URL (z.B. https://podcast.bbs2-wob.de)', 'https://podcast.bbs2-wob.de');
-  const dbPassword = await ask(rl, 'DB_PASSWORD (PostgreSQL-Passwort)', '');
-  const jwtSecret = await ask(rl, 'JWT_SECRET (langer Zufallsstring für Anmeldung)', '');
-  const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional, leer lassen)', '');
+  print('\n=== Produktions-Setup ===\n');
+  const publicUrl = await ask(rl, 'PUBLIC_URL', 'https://podcast.bbs2-wob.de');
+  const dbPassword = await ask(rl, 'DB_PASSWORD', '');
+  const jwtSecret = await ask(rl, 'JWT_SECRET', '');
+  const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional)', '');
 
   if (!dbPassword || !jwtSecret) {
-    print('\nFehler: DB_PASSWORD und JWT_SECRET sind erforderlich für Produktion.');
-    print('Starte das Skript erneut und gib gültige Werte ein.\n');
+    print('\nFehler: DB_PASSWORD und JWT_SECRET sind erforderlich.\n');
     process.exit(1);
   }
 
-  const env = `# Produktions-Setup - automatisch generiert
+  const env = `# Produktions-Setup
 PORT=3000
 HOST=0.0.0.0
 PUBLIC_URL=${publicUrl}
@@ -269,34 +299,22 @@ JWT_SECRET=${jwtSecret}
 DB_PASSWORD=${dbPassword}
 ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 `;
-
   fs.writeFileSync(ENV_PATH, env);
-  print('\nErstellt: .env (Produktions-Konfiguration)\n');
-
-  print('Installiere Abhängigkeiten...');
+  print('\nErstellt: .env\n');
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
-    print('npm install abgeschlossen.\n');
-  } catch (e) {
-    print('Hinweis: npm install fehlgeschlagen. Führe es manuell aus: npm install\n');
-  }
-
+  } catch (e) {}
   print('Produktions-Setup fertig.');
-  print('\nStart mit Docker: docker compose -f docker-compose.prod.yml up -d');
-  print('Stopp: docker compose -f docker-compose.prod.yml down');
+  print('\nStart: docker compose -f docker-compose.prod.yml up -d');
   printAppLink(publicUrl, false);
 }
 
 async function setupOnlyDb(rl) {
-  print('\n=== Nur PostgreSQL (DB-Host, z.B. Haupt-PC) ===\n');
-
+  print('\n=== Nur PostgreSQL (DB-Host) ===\n');
   let dbPassword = '';
-  if (fs.existsSync(ENV_PATH)) {
-    const content = fs.readFileSync(ENV_PATH, 'utf8');
-    const m = content.match(/DB_PASSWORD=([^\r\n]+)/);
-    if (m) dbPassword = m[1].trim();
-  }
-  dbPassword = await ask(rl, 'DB_PASSWORD (PostgreSQL-Passwort)', dbPassword || '');
+  const envContent = loadEnv();
+  dbPassword = envContent.DB_PASSWORD || '';
+  dbPassword = await ask(rl, 'DB_PASSWORD', dbPassword || '');
 
   if (!dbPassword) {
     print('\nFehler: DB_PASSWORD ist erforderlich.\n');
@@ -312,10 +330,8 @@ async function setupOnlyDb(rl) {
     env = `# DB-only Setup\nDB_PASSWORD=${dbPassword}\n`;
   }
   fs.writeFileSync(ENV_PATH, env);
-  print('\nErstellt/aktualisiert: .env\n');
 
-  const composePath = path.join(ROOT, 'docker-compose.db-only.yml');
-  if (!fs.existsSync(composePath)) {
+  if (!fs.existsSync(path.join(ROOT, 'docker-compose.db-only.yml'))) {
     print('Fehler: docker-compose.db-only.yml fehlt.\n');
     process.exit(1);
   }
@@ -324,52 +340,159 @@ async function setupOnlyDb(rl) {
   ensureDockerReady();
   runDockerComposeWithRetry('docker-compose.db-only.yml', ['up -d']);
   print('\nPostgreSQL läuft.\n');
-
   const ip = getLocalIP();
-  print('Diese IP auf dem App-Host für DB_HOST verwenden: ' + ip);
-  print('\nBeispiel auf dem anderen Gerät: node scripts/setup.js --app-only');
-  print('\nLive DB-Log (neue Podcasts) anzeigen: node scripts/db-log-viewer.js');
+  print('DB_HOST für App-Rechner: ' + ip);
+  print('\nBeispiel: node scripts/setup.js --app-only');
+  print('\nLive DB-Log: node scripts/db-log-viewer.js');
   print('');
 }
 
-async function setupAppOnly(rl) {
-  print('\n=== Nur App (verbindet zu Remote-DB, z.B. Laptop) ===\n');
+async function setupOnlyDbSsh(rl) {
+  print('\n=== Nur PostgreSQL + SSH-Tunnel (DB-Host) ===\n');
+  print('Richtet DB und SSH-Zugang ein, damit die App von überall verbinden kann.\n');
 
-  const dbHost = await ask(rl, 'DB_HOST (IP des DB-Rechners, z.B. 192.168.1.100)', '');
-  const dbPassword = await ask(rl, 'DB_PASSWORD (muss mit DB-Host übereinstimmen)', '');
-  const jwtSecret = await ask(rl, 'JWT_SECRET (langer Zufallsstring)', '');
+  print('Installiere Abhängigkeiten...');
+  try {
+    execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
+  } catch (e) {
+    print('Hinweis: npm install fehlgeschlagen. Fahre fort.\n');
+  }
+
+  let dbPassword = '';
+  const envContent = loadEnv();
+  dbPassword = envContent.DB_PASSWORD || '';
+  dbPassword = await ask(rl, 'DB_PASSWORD', dbPassword || '');
+
+  if (!dbPassword) {
+    print('\nFehler: DB_PASSWORD ist erforderlich.\n');
+    process.exit(1);
+  }
+
+  let env = '';
+  if (fs.existsSync(ENV_PATH)) {
+    env = fs.readFileSync(ENV_PATH, 'utf8');
+    if (!env.includes('DB_PASSWORD=')) env += `\nDB_PASSWORD=${dbPassword}\n`;
+    else env = env.replace(/DB_PASSWORD=[^\r\n]*/, `DB_PASSWORD=${dbPassword}`);
+  } else {
+    env = `# DB-only SSH Setup\nDB_PASSWORD=${dbPassword}\n`;
+  }
+  fs.writeFileSync(ENV_PATH, env);
+
+  if (!fs.existsSync(path.join(ROOT, 'docker-compose.db-only.yml'))) {
+    print('Fehler: docker-compose.db-only.yml fehlt.\n');
+    process.exit(1);
+  }
+
+  print('Starte PostgreSQL...');
+  ensureDockerReady();
+  runDockerComposeWithRetry('docker-compose.db-only.yml', ['up -d']);
+  print('PostgreSQL läuft.\n');
+
+  print('Prüfe SSH-Server...');
+  let sshOk = false;
+  try {
+    if (os.platform() === 'win32') {
+      execSync('where sshd', { stdio: 'pipe' });
+      sshOk = true;
+    } else {
+      execSync('which sshd', { stdio: 'pipe' });
+      sshOk = true;
+    }
+  } catch (_) {}
+  if (!sshOk) {
+    print('\nHinweis: SSH-Server (sshd) nicht gefunden.');
+    if (os.platform() === 'linux') {
+      print('Installieren: sudo apt install openssh-server');
+    } else if (os.platform() === 'win32') {
+      print('Windows: OpenSSH-Server als optionales Feature aktivieren.');
+    }
+    print('Fahre trotzdem fort – du kannst später SSH einrichten.\n');
+  }
+
+  const { createCredentialsBundle } = require('./ssh-credentials');
+  const localIp = getLocalIP();
+
+  print('Erstelle SSH-Schlüssel und Credentials...');
+  let sshHost = localIp;
+
+  let upnpOk = false;
+  try {
+    require.resolve('nat-upnp');
+    print('Versuche UPnP-Portweiterleitung (Port 22)...');
+    upnpOk = await tryUpnpPortForward(22);
+    if (upnpOk) {
+      print('UPnP: Port 22 weitergeleitet.');
+      const extIp = await tryGetExternalIp();
+      if (extIp) sshHost = extIp;
+    } else {
+      print('UPnP fehlgeschlagen oder nicht unterstützt.');
+    }
+  } catch (_) {
+    print('Hinweis: nat-upnp nicht installiert. npm install nat-upnp für automatische Portweiterleitung.');
+  }
+
+  if (!upnpOk) {
+    const fallback = await fetchExternalIp();
+    if (fallback) sshHost = fallback;
+    print('\nFalls Verbindung von außen nicht klappt:');
+    print('- Installiere Tailscale auf beiden Rechnern und nutze die Tailscale-IP als ssh_host');
+    print('- Oder richte Portweiterleitung (Port 22) auf deinem Router manuell ein.\n');
+  }
+
+  const bundle = createCredentialsBundle(dbPassword, sshHost, 5432);
+  fs.writeFileSync(CREDS_PATH, JSON.stringify(bundle, null, 2), { mode: 0o600 });
+  print('\nCredentials gespeichert: podcast-ssh-credentials.json');
+  print('');
+  print('Nächste Schritte:');
+  print('1. Kopiere podcast-ssh-credentials.json auf den App-Rechner (USB, SCP, etc.)');
+  print('2. Auf dem App-Rechner: node scripts/setup.js --app-only-ssh');
+  print('3. Gib den Pfad zur Datei an oder füge die Werte manuell ein.');
+  print('');
+  print('SSH-Host für App: ' + sshHost);
+  print('');
+  print('Starte Live DB-Log... (Strg+C zum Beenden)\n');
+  rl.close();
+  const child = spawn(process.execPath, [path.join(__dirname, 'db-log-viewer.js')], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+  child.on('close', (code) => process.exit(code ?? 0));
+}
+
+async function setupAppOnly(rl) {
+  print('\n=== Nur App (verbindet zu Remote-DB) ===\n');
+  const dbHost = await ask(rl, 'DB_HOST (IP des DB-Rechners)', '');
+  const dbPort = await ask(rl, 'DB_PORT', '5432');
+  const dbPassword = await ask(rl, 'DB_PASSWORD', '');
+  const jwtSecret = await ask(rl, 'JWT_SECRET', '');
   const publicUrl = await ask(rl, 'PUBLIC_URL', 'http://localhost:3000');
-  const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional, leer lassen)', '');
+  const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional)', '');
 
   if (!dbHost || !dbPassword || !jwtSecret) {
     print('\nFehler: DB_HOST, DB_PASSWORD und JWT_SECRET sind erforderlich.\n');
     process.exit(1);
   }
 
-  const env = `# App-only Setup (Remote-DB)
+  const port = dbPort || '5432';
+  const env = `# App-only Setup
 PORT=3000
 HOST=0.0.0.0
 PUBLIC_URL=${publicUrl}
 JWT_SECRET=${jwtSecret}
 DB_HOST=${dbHost}
+DB_PORT=${port}
 DB_PASSWORD=${dbPassword}
-DATABASE_URL=postgresql://podcast:${dbPassword}@${dbHost}:5432/podcasts
+DATABASE_URL=postgresql://podcast:${dbPassword}@${dbHost}:${port}/podcasts
 ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 `;
-
   fs.writeFileSync(ENV_PATH, env);
   print('\nErstellt: .env\n');
 
-  print('Installiere Abhängigkeiten...');
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
-    print('npm install abgeschlossen.\n');
-  } catch (e) {
-    print('Hinweis: npm install fehlgeschlagen. Führe es manuell aus: npm install\n');
-  }
+  } catch (e) {}
 
-  const composePath = path.join(ROOT, 'docker-compose.app-only.yml');
-  if (!fs.existsSync(composePath)) {
+  if (!fs.existsSync(path.join(ROOT, 'docker-compose.app-only.yml'))) {
     print('Fehler: docker-compose.app-only.yml fehlt.\n');
     process.exit(1);
   }
@@ -384,13 +507,152 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
     print('App läuft, DB-Verbindung OK.');
   } catch (e) {
     print('\nWarnung: ' + e.message);
-    print('Prüfe: docker compose -f docker-compose.app-only.yml logs');
-    print('Stelle sicher, dass der DB-Host erreichbar ist und Port 5432 offen ist.\n');
+    print('Prüfe: docker compose -f docker-compose.app-only.yml logs\n');
+  }
+  print('\nStopp: docker compose -f docker-compose.app-only.yml down');
+  printAppLink(publicUrl, true);
+}
+
+async function setupAppOnlySsh(rl) {
+  print('\n=== Nur App (via SSH-Tunnel zur Remote-DB) ===\n');
+  print('Verbindet über SSH-Tunnel – funktioniert auch aus anderen Netzwerken.\n');
+
+  let credsPath = await ask(rl, 'Pfad zu podcast-ssh-credentials.json (oder leer für manuelle Eingabe)', '');
+  credsPath = credsPath.trim();
+
+  let bundle = null;
+  if (credsPath && fs.existsSync(credsPath)) {
+    try {
+      bundle = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+    } catch (e) {
+      print('Fehler beim Lesen der Datei.\n');
+    }
   }
 
-  print('\nApp verbindet sich mit der Remote-DB.');
-  print('Stopp: docker compose -f docker-compose.app-only.yml down');
+  if (!bundle) {
+    print('Manuelle Eingabe:\n');
+    const sshHost = await ask(rl, 'SSH_HOST (IP oder Hostname des DB-Rechners)', '');
+    const sshUser = await ask(rl, 'SSH_USER', os.userInfo().username);
+    const keyPath = await ask(rl, 'Pfad zum privaten SSH-Schlüssel', '');
+    const dbPassword = await ask(rl, 'DB_PASSWORD', '');
+    if (!sshHost || !sshUser || !keyPath || !dbPassword) {
+      print('\nFehler: Alle Angaben erforderlich.\n');
+      process.exit(1);
+    }
+    bundle = {
+      ssh_host: sshHost,
+      ssh_user: sshUser,
+      ssh_private_key: fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf8') : null,
+      db_password: dbPassword,
+      db_port: 5432,
+    };
+    if (!bundle.ssh_private_key) {
+      print('\nFehler: Schlüsseldatei nicht gefunden.\n');
+      process.exit(1);
+    }
+  }
+
+  const sshDir = path.join(ROOT, '.ssh');
+  if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { mode: 0o700 });
+  const keyPath = path.join(sshDir, 'podcast_tunnel');
+  fs.writeFileSync(keyPath, bundle.ssh_private_key, { mode: 0o600 });
+  if (os.platform() !== 'win32') {
+    try { fs.chmodSync(keyPath, 0o600); } catch (_) {}
+  }
+
+  const jwtSecret = await ask(rl, 'JWT_SECRET', '');
+  const publicUrl = await ask(rl, 'PUBLIC_URL', 'http://localhost:3000');
+  const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional)', '');
+
+  if (!jwtSecret) {
+    print('\nFehler: JWT_SECRET ist erforderlich.\n');
+    process.exit(1);
+  }
+
+  const localPort = 5433;
+  const env = `# App-only via SSH-Tunnel
+PORT=3000
+HOST=0.0.0.0
+PUBLIC_URL=${publicUrl}
+JWT_SECRET=${jwtSecret}
+DB_HOST=localhost
+DB_PORT=${localPort}
+DB_PASSWORD=${bundle.db_password}
+DATABASE_URL=postgresql://podcast:${bundle.db_password}@localhost:${localPort}/podcasts
+${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
+`;
+  fs.writeFileSync(ENV_PATH, env);
+
+  print('\nStarte SSH-Tunnel...');
+  const tunnel = spawn('ssh', [
+    '-o', 'StrictHostKeyChecking=accept-new',
+    '-o', 'BatchMode=yes',
+    '-L', `${localPort}:localhost:${bundle.db_port || 5432}`,
+    '-i', keyPath,
+    '-N',
+    `${bundle.ssh_user}@${bundle.ssh_host}`,
+  ], { stdio: 'pipe', cwd: ROOT });
+
+  tunnel.on('error', (err) => {
+    print('SSH-Tunnel Fehler: ' + err.message);
+    print('Prüfe: SSH_HOST erreichbar? Schlüssel korrekt?');
+    process.exit(1);
+  });
+
+  let tunnelReady = false;
+  tunnel.stderr.on('data', (ch) => {
+    const s = ch.toString();
+    if (s.includes('Permission denied') || s.includes('Connection refused')) {
+      print('SSH-Verbindung fehlgeschlagen: ' + s.trim());
+    }
+  });
+
+  await new Promise((r) => setTimeout(r, 2000));
+  if (tunnel.killed || !tunnel.connected) {
+    print('SSH-Tunnel konnte nicht gestartet werden.');
+    process.exit(1);
+  }
+  tunnelReady = true;
+  print('SSH-Tunnel läuft.\n');
+
+  try {
+    execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
+  } catch (e) {}
+
+  if (!fs.existsSync(path.join(ROOT, 'docker-compose.app-only.yml'))) {
+    print('Fehler: docker-compose.app-only.yml fehlt.\n');
+    process.exit(1);
+  }
+
+  print('Baue und starte die App...');
+  ensureDockerReady();
+  runDockerComposeWithRetry('docker-compose.app-only.yml', ['build', 'up -d']);
+
+  print('\nWarte auf App und teste DB-Verbindung...');
+  try {
+    await waitForApp('http://localhost:3000');
+    print('App läuft, DB-Verbindung OK.');
+  } catch (e) {
+    print('\nWarnung: ' + e.message);
+  }
+
+  print('\nStopp: Strg+C beendet App und SSH-Tunnel.');
   printAppLink(publicUrl, true);
+
+  process.on('SIGINT', () => {
+    tunnel.kill('SIGINT');
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    tunnel.kill('SIGTERM');
+    process.exit(0);
+  });
+
+  tunnel.on('close', (code) => {
+    if (code !== 0 && tunnelReady) {
+      print('\nSSH-Tunnel wurde beendet.');
+    }
+  });
 }
 
 async function main() {
@@ -399,39 +661,40 @@ async function main() {
   const isProd = args.includes('--prod');
   const isOnlyDb = args.includes('--only-db');
   const isAppOnly = args.includes('--app-only');
+  const isDbOnlySsh = args.includes('--db-only-ssh');
+  const isAppOnlySsh = args.includes('--app-only-ssh');
 
-  const modes = [isDev, isProd, isOnlyDb, isAppOnly].filter(Boolean);
+  const modes = [isDev, isProd, isOnlyDb, isAppOnly, isDbOnlySsh, isAppOnlySsh].filter(Boolean);
   if (modes.length === 0) {
     print('BBS Podcast Platform - Setup');
     print('');
     print('Verwendung:');
-    print('  node scripts/setup.js --dev       Entwicklung (localhost, SQLite)');
-    print('  node scripts/setup.js --prod      Produktion (vollständig, App + DB)');
-    print('  node scripts/setup.js --only-db   Nur PostgreSQL (DB-Host, z.B. Haupt-PC)');
-    print('  node scripts/setup.js --app-only  Nur App (verbindet zu Remote-DB, z.B. Laptop)');
+    print('  node scripts/setup.js --dev           Entwicklung (localhost, SQLite)');
+    print('  node scripts/setup.js --prod          Produktion (App + DB)');
+    print('  node scripts/setup.js --only-db       Nur PostgreSQL (DB-Host)');
+    print('  node scripts/setup.js --app-only      Nur App (direkte DB-Verbindung)');
+    print('  node scripts/setup.js --db-only-ssh   Nur DB + SSH-Credentials (für Remote-Zugang)');
+    print('  node scripts/setup.js --app-only-ssh  Nur App (via SSH-Tunnel, funktioniert überall)');
     print('');
     process.exit(0);
   }
 
   if (modes.length > 1) {
-    print('Fehler: Gib nur einen Modus an (--dev, --prod, --only-db oder --app-only).\n');
+    print('Fehler: Gib nur einen Modus an.\n');
     process.exit(1);
   }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   try {
-    if (isDev) {
-      await setupDev(rl);
-    } else if (isProd) {
-      await setupProd(rl);
-    } else if (isOnlyDb) {
-      await setupOnlyDb(rl);
-    } else {
-      await setupAppOnly(rl);
-    }
+    if (isDev) await setupDev(rl);
+    else if (isProd) await setupProd(rl);
+    else if (isOnlyDb) await setupOnlyDb(rl);
+    else if (isAppOnly) await setupAppOnly(rl);
+    else if (isDbOnlySsh) await setupOnlyDbSsh(rl);
+    else await setupAppOnlySsh(rl);
   } finally {
-    rl.close();
+    try { rl.close(); } catch (_) {}
   }
 }
 

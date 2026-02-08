@@ -8,7 +8,7 @@ services:
       - PORT=3000
       - HOST=0.0.0.0
       - PUBLIC_URL=${PUBLIC_URL:-http://localhost:3000}
-      - DATABASE_URL=postgresql://podcast:${DB_PASSWORD}@${DB_HOST}:5432/podcasts
+      - DATABASE_URL=postgresql://podcast:${DB_PASSWORD}@${DB_HOST}:${DB_PORT:-5432}/podcasts
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=${CORS_ORIGIN:-}
     volumes:
