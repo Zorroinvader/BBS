@@ -564,33 +564,29 @@ async function setupOnlyDbSsh(rl) {
   }
 
   if (!portForwardOk) {
+    print('\nPort-Forwarding fehlgeschlagen. Wechsle automatisch zu Tailscale (kein Port-Forwarding nötig)...\n');
     let tailscaleIp = getTailscaleIp();
     if (tailscaleIp) {
       sshHost = tailscaleIp;
-      print('Tailscale gefunden. SSH-Host: ' + sshHost);
-    } else {
-      const hadTailscale = isTailscaleInstalled();
-      if (!hadTailscale && tryInstallTailscale()) {
-        print('\nTailscale wurde installiert.');
-        print('Bitte starte Tailscale und melde dich an:');
-        if (os.platform() === 'win32') {
-          print('  Starte "Tailscale" aus dem Startmenü und melde dich an.');
-        } else {
-          print('  sudo tailscale up');
-        }
-        print('\nDann führe dieses Skript erneut aus: node scripts/setup.js --db-only-ssh');
-        print('');
-        process.exit(0);
-      } else if (hadTailscale) {
-        print('\nTailscale ist installiert, aber nicht verbunden.');
-        print('Starte Tailscale: ' + (os.platform() === 'win32' ? 'Tailscale aus Startmenü starten' : 'sudo tailscale up'));
-        print('Dann Skript erneut ausführen.');
-      }
+      print('Tailscale bereits verbunden. SSH-Host: ' + sshHost);
+    } else if (!isTailscaleInstalled()) {
+      print('Installiere Tailscale...');
+      tryInstallTailscale();
       const fallback = await fetchExternalIp();
       if (fallback) sshHost = fallback;
-      if (!tailscaleIp) {
-        print('\nAlternativ: Portweiterleitung (Port 22) auf dem Router manuell einrichten.');
+      if (isTailscaleInstalled()) {
+        print('Tailscale wurde installiert. Starte es (Startmenü bzw. sudo tailscale up) und melde dich an.');
+        print('Skript erneut ausführen für Tailscale-IP in den Credentials.');
+      } else {
+        print('Tailscale-Installation fehlgeschlagen oder abgebrochen.');
+        print('Alternativ: Tailscale manuell installieren oder Port 22 am Router weiterleiten.');
       }
+    } else {
+      print('Tailscale ist installiert, aber nicht verbunden.');
+      print('Starte Tailscale: ' + (os.platform() === 'win32' ? 'Tailscale aus Startmenü starten' : 'sudo tailscale up'));
+      print('Dann Skript erneut ausführen. Verwende vorläufig öffentliche IP.');
+      const fallback = await fetchExternalIp();
+      if (fallback) sshHost = fallback;
     }
   }
 
