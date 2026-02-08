@@ -348,11 +348,12 @@ function tryInstallTailscale() {
   }
   if (os.platform() === 'linux') {
     const cmds = [
-      ['Offizielles Install-Skript (sudo)', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
+      ['Offizielles Install-Skript', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
       ['apt (Debian/Ubuntu)', 'sudo apt-get update && sudo apt-get install -y tailscale'],
       ['dnf (Fedora/RHEL)', 'sudo dnf install -y tailscale'],
       ['zypper (openSUSE)', 'sudo zypper install -y tailscale'],
-      ['pacman (Arch)', 'sudo pacman -S --noconfirm tailscale'],
+      ['yay (Arch AUR)', 'yay -S --noconfirm tailscale'],
+      ['paru (Arch AUR)', 'paru -S --noconfirm tailscale'],
     ];
     for (const [label, cmd] of cmds) {
       try {
@@ -366,6 +367,7 @@ function tryInstallTailscale() {
     print('');
     print('Automatische Installation fehlgeschlagen. Bitte manuell installieren:');
     print('  curl -fsSL https://tailscale.com/install.sh | sudo sh');
+    print('  Arch: yay -S tailscale  oder  paru -S tailscale  (falls pacman 404 liefert)');
     print('  Oder: https://tailscale.com/download/linux');
     print('');
     return false;
