@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DB-Log – BBS II Wolfsburg Podcasts</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .log-container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #1e1e1e;
+      border-radius: 8px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9rem;
+      color: #d4d4d4;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .log-entry {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #333;
+      display: grid;
+      grid-template-columns: 12em 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #6a9955; font-size: 0.85em; }
+    .log-upload { color: #4ec9b0; }
+    .log-upload .title { color: #ce9178; font-weight: bold; }
+    .log-connected { color: #9cdcfe; }
+    .status-bar { padding: 0.5rem 1rem; background: #252526; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .status-bar.connected { color: #4ec9b0; }
+    .status-bar.disconnected { color: #f48771; }
+    .status-bar.connecting { color: #dcdcaa; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="site-logo">
+      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+      <span>Admin – DB-Log</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/admin/">Dashboard</a>
+      <a href="/admin/upload.html">Upload</a>
+      <span id="user-email"></span>
+      <a href="#" id="logout">Abmelden</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <h1>Live DB-Log – Podcast-Uploads</h1>
+    <p>Hier siehst du in Echtzeit, wenn neue Podcasts in die Datenbank hochgeladen werden.</p>
+    <div id="status" class="status-bar connecting">Verbinde...</div>
+    <div id="log" class="log-container"></div>
+  </main>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+
+    const token = getToken();
+    if (!token) {
+      window.location.href = '/admin/';
+      throw new Error('Nicht angemeldet');
+    }
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault();
+      clearToken();
+      location.href = '/admin/';
+    };
+
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+    }
+
+    function addEntry(entry) {
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      if (entry.type === 'episode' && entry.event === 'upload') {
+        div.classList.add('log-upload');
+        div.innerHTML = `
+          <span class="log-time">${formatTime(entry.ts)}</span>
+          <span><strong>Upload</strong> – <span class="title">${escapeHtml(entry.title || '(ohne Titel)')}</span> (ID: ${entry.id})<br>
+          <small>Audio: ${escapeHtml(entry.audio_path || '-')}</small></span>
+        `;
+      } else if (entry.type === 'connected') {
+        div.classList.add('log-connected');
+        div.innerHTML = `<span class="log-time">${formatTime(entry.ts)}</span><span>${escapeHtml(entry.msg || 'Verbunden')}</span>`;
+      } else {
+        div.innerHTML = `<span class="log-time">${formatTime(entry.ts)}</span><span>${escapeHtml(JSON.stringify(entry))}</span>`;
+      }
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = String(s);
+      return d.innerHTML;
+    }
+
+    function setStatus(cls, text) {
+      statusEl.className = 'status-bar ' + cls;
+      statusEl.textContent = text;
+    }
+
+    async function connect() {
+      setStatus('connecting', 'Verbinde...');
+      try {
+        const res = await fetch(API + '/db-log', {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (!res.ok) {
+          if (res.status === 401) { location.href = '/admin/'; return; }
+          throw new Error(res.statusText);
+        }
+        setStatus('connected', 'Live verbunden – Warte auf neue Uploads...');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() || '';
+          let data = '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) data = line.slice(6);
+            else if (line === '' && data) {
+              try {
+                addEntry(JSON.parse(data));
+              } catch (_) {}
+              data = '';
+            }
+          }
+        }
+      } catch (e) {
+        setStatus('disconnected', 'Verbindung verloren. Erneute Verbindung in 3 s...');
+        setTimeout(connect, 3000);
+      }
+    }
+
+    connect();
+  </script>
+</body>
+</html>

@@ -67,6 +67,12 @@ node scripts/setup.js --only-db
 - Startet nur den PostgreSQL-Container
 - Zeigt die lokale IP an – diese brauchst du als `DB_HOST` auf dem App-Rechner
 
+**Live DB-Log auf dem DB-Rechner anzeigen** (Terminal, keine Authentifizierung):
+```bash
+node scripts/db-log-viewer.js
+```
+Zeigt in Echtzeit an, wenn ein neuer Podcast in die Datenbank geschrieben wird.
+
 ### Nur App (Remote-DB)
 
 Für die App auf einem anderen Rechner, die sich mit der Remote-DB verbindet (z.B. Laptop):

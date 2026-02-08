@@ -5,6 +5,7 @@ const config = require('./config');
 const healthRouter = require('./api/health');
 const authRouter = require('./api/auth');
 const episodesRouter = require('./api/episodes');
+const dbLogRouter = require('./api/dbLog');
 const statsRouter = require('./api/stats');
 const usersRouter = require('./api/users');
 const { generateRss } = require('./services/rss');
@@ -27,6 +28,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/episodes', episodesRouter);
+app.use('/api/db-log', dbLogRouter);
 app.use('/api/users', usersRouter);
 
 app.get('/feed.xml', async (req, res) => {

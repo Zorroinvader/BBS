@@ -327,7 +327,9 @@ async function setupOnlyDb(rl) {
 
   const ip = getLocalIP();
   print('Diese IP auf dem App-Host für DB_HOST verwenden: ' + ip);
-  print('\nBeispiel auf dem anderen Gerät: node scripts/setup.js --app-only\n');
+  print('\nBeispiel auf dem anderen Gerät: node scripts/setup.js --app-only');
+  print('\nLive DB-Log (neue Podcasts) anzeigen: node scripts/db-log-viewer.js');
+  print('');
 }
 
 async function setupAppOnly(rl) {

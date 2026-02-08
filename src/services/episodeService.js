@@ -1,4 +1,5 @@
 const { getDb } = require('../db');
+const { logEpisode } = require('../lib/dbLog');
 
 async function getAllEpisodes(options = {}) {
   const db = await getDb();
@@ -34,7 +35,14 @@ async function createEpisode(data) {
      VALUES (?, ?, ?, ?, ?, ?)`,
     [title || '', description || '', audio_path, artwork_path || null, duration_seconds || null, created_by || null]
   );
-  return getEpisodeById(result.lastId);
+  const episode = await getEpisodeById(result.lastId);
+  logEpisode('upload', {
+    id: episode.id,
+    title: episode.title,
+    audio_path: episode.audio_path,
+    created_by: created_by,
+  });
+  return episode;
 }
 
 async function updateEpisode(id, data) {
