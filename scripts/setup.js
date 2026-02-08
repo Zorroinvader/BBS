@@ -5,6 +5,8 @@
  */
 
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const os = require('os');
 const path = require('path');
 const readline = require('readline');
@@ -114,6 +116,58 @@ function ensureDockerReady() {
 
   print('\nDocker Desktop wurde nicht gefunden. Bitte starte Docker manuell und führe das Skript erneut aus.\n');
   process.exit(1);
+}
+
+function waitForApp(baseUrl, maxAttempts = 60) {
+  const url = baseUrl.replace(/\/$/, '') + '/api/health';
+  const parsed = new URL(url);
+  const isHttps = parsed.protocol === 'https:';
+  const client = isHttps ? https : http;
+  const checkHost = parsed.hostname === '0.0.0.0' ? 'localhost' : parsed.hostname;
+  const checkUrl = `${parsed.protocol}//${checkHost}:${parsed.port || (isHttps ? 443 : 80)}/api/health`;
+
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const tryFetch = () => {
+      attempts++;
+      const req = client.get(checkUrl, { timeout: 5000 }, (res) => {
+        let data = '';
+        res.on('data', (ch) => (data += ch));
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            try {
+              const json = JSON.parse(data);
+              if (json.db === 'connected' || json.status === 'ok') {
+                resolve(true);
+                return;
+              }
+            } catch (_) {}
+          }
+          if (attempts >= maxAttempts) {
+            reject(new Error('App oder DB-Verbindung nicht bereit'));
+            return;
+          }
+          setTimeout(tryFetch, 2000);
+        });
+      });
+      req.on('error', () => {
+        if (attempts >= maxAttempts) {
+          reject(new Error('App nicht erreichbar unter ' + checkUrl));
+          return;
+        }
+        setTimeout(tryFetch, 2000);
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        if (attempts >= maxAttempts) {
+          reject(new Error('App antwortet nicht'));
+          return;
+        }
+        setTimeout(tryFetch, 2000);
+      });
+    };
+    tryFetch();
+  });
 }
 
 function runDockerComposeWithRetry(composeFile, commands) {
@@ -321,7 +375,18 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   print('Baue und starte die App...');
   ensureDockerReady();
   runDockerComposeWithRetry('docker-compose.app-only.yml', ['build', 'up -d']);
-  print('\nApp läuft und verbindet sich mit der Remote-DB.');
+
+  print('\nWarte auf App und teste DB-Verbindung (bis zu 2 Min.)...');
+  try {
+    await waitForApp('http://localhost:3000');
+    print('App läuft, DB-Verbindung OK.');
+  } catch (e) {
+    print('\nWarnung: ' + e.message);
+    print('Prüfe: docker compose -f docker-compose.app-only.yml logs');
+    print('Stelle sicher, dass der DB-Host erreichbar ist und Port 5432 offen ist.\n');
+  }
+
+  print('\nApp verbindet sich mit der Remote-DB.');
   print('Stopp: docker compose -f docker-compose.app-only.yml down');
   printAppLink(publicUrl, true);
 }
