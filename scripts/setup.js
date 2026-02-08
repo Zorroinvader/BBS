@@ -212,20 +212,62 @@ function getLocalIP() {
   return '127.0.0.1';
 }
 
-function tryUpnpPortForward(port) {
-  try {
-    const natUpnp = require('nat-upnp');
-    const client = natUpnp.createClient();
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => resolve(null), 5000);
-      client.portMapping({ public: port, private: port, ttl: 3600 }, (err) => {
-        clearTimeout(timeout);
-        resolve(err ? null : true);
+async function tryPortForward(port) {
+  let lastExtIp = null;
+  const methods = [
+    ['UPnP (nat-upnp)', async () => {
+      const natUpnp = require('nat-upnp');
+      const client = natUpnp.createClient();
+      return new Promise((resolve) => {
+        const t = setTimeout(() => resolve(null), 6000);
+        client.portMapping({ public: port, private: port, ttl: 3600 }, (err) => {
+          if (err) { clearTimeout(t); resolve(null); return; }
+          client.externalIp((e, ip) => {
+            clearTimeout(t);
+            if (!e && ip) lastExtIp = ip;
+            resolve(!err);
+          });
+        });
       });
-    });
-  } catch (e) {
-    return Promise.resolve(null);
+    }],
+    ['UPnP (nat-port-mapper)', async () => {
+      try {
+        const { upnpNat } = await import('@achingbrain/nat-port-mapper');
+        const client = upnpNat();
+        for await (const gateway of client.findGateways({ signal: AbortSignal.timeout(6000) })) {
+          await gateway.map(port, getLocalIP(), { protocol: 'tcp' });
+          lastExtIp = await gateway.externalIp();
+          await gateway.stop();
+          return true;
+        }
+        return null;
+      } catch (_) {
+        return null;
+      }
+    }],
+    ['NAT-PMP', async () => {
+      try {
+        const { pmpNat } = await import('@achingbrain/nat-port-mapper');
+        const dg = require('default-gateway');
+        const gw = await dg.v4();
+        const gateway = pmpNat(gw.gateway);
+        await gateway.map(port, getLocalIP(), { protocol: 'tcp' });
+        lastExtIp = await gateway.externalIp();
+        await gateway.stop();
+        return true;
+      } catch (_) {
+        return null;
+      }
+    }],
+  ];
+  for (const [name, fn] of methods) {
+    try {
+      print('  Versuche ' + name + '...');
+      const ok = await fn();
+      if (ok) return lastExtIp || (await tryGetExternalIp()) || (await fetchExternalIp());
+    } catch (_) {}
   }
+  return null;
 }
 
 function tryGetExternalIp() {
@@ -276,19 +318,48 @@ function getTailscaleIp() {
 }
 
 function tryInstallTailscale() {
-  try {
-    if (os.platform() === 'win32') {
+  if (os.platform() === 'win32') {
+    try {
       print('Installiere Tailscale (kein Port-Forwarding nötig)...');
       execSync('winget install Tailscale.Tailscale --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
       return true;
+    } catch (e) {
+      print('Winget fehlgeschlagen. Manuell: https://tailscale.com/download/windows');
+      return false;
     }
-    if (os.platform() === 'linux' || os.platform() === 'darwin') {
-      print('Installiere Tailscale (kein Port-Forwarding nötig)...');
-      print('Hinweis: sudo-Passwort eventuell erforderlich.');
-      execSync('curl -fsSL https://tailscale.com/install.sh | sh', { stdio: 'inherit' });
+  }
+  if (os.platform() === 'darwin') {
+    try {
+      print('Installiere Tailscale...');
+      execSync('brew install --cask tailscale', { stdio: 'inherit' });
       return true;
+    } catch (e) {
+      print('Homebrew fehlgeschlagen. Manuell: https://tailscale.com/download/mac');
+      return false;
     }
-  } catch (e) {
+  }
+  if (os.platform() === 'linux') {
+    const cmds = [
+      ['Offizielles Install-Skript (sudo)', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
+      ['apt (Debian/Ubuntu)', 'sudo apt-get update && sudo apt-get install -y tailscale'],
+      ['dnf (Fedora/RHEL)', 'sudo dnf install -y tailscale'],
+      ['zypper (openSUSE)', 'sudo zypper install -y tailscale'],
+      ['pacman (Arch)', 'sudo pacman -S --noconfirm tailscale'],
+    ];
+    for (const [label, cmd] of cmds) {
+      try {
+        print('Installiere Tailscale: ' + label + '...');
+        execSync(cmd, { stdio: 'inherit' });
+        return true;
+      } catch (e) {
+        print('  ' + label + ' fehlgeschlagen.');
+      }
+    }
+    print('');
+    print('Automatische Installation fehlgeschlagen. Bitte manuell installieren:');
+    print('  curl -fsSL https://tailscale.com/install.sh | sudo sh');
+    print('  Oder: https://tailscale.com/download/linux');
+    print('');
     return false;
   }
   return false;
@@ -477,23 +548,22 @@ async function setupOnlyDbSsh(rl) {
   print('Erstelle SSH-Schlüssel und Credentials...');
   let sshHost = localIp;
 
-  let upnpOk = false;
+  print('Versuche Portweiterleitung (Port 22)...');
+  let portForwardOk = false;
   try {
-    require.resolve('nat-upnp');
-    print('Versuche UPnP-Portweiterleitung (Port 22)...');
-    upnpOk = await tryUpnpPortForward(22);
-    if (upnpOk) {
-      print('UPnP: Port 22 weitergeleitet.');
-      const extIp = await tryGetExternalIp();
-      if (extIp) sshHost = extIp;
+    const extIp = await tryPortForward(22);
+    if (extIp) {
+      sshHost = extIp;
+      portForwardOk = true;
+      print('Port 22 weitergeleitet. Öffentliche IP: ' + sshHost);
     } else {
-      print('UPnP fehlgeschlagen oder nicht unterstützt.');
+      print('Alle Port-Forwarding-Methoden fehlgeschlagen.');
     }
-  } catch (_) {
-    print('Hinweis: nat-upnp nicht installiert. npm install nat-upnp für automatische Portweiterleitung.');
+  } catch (e) {
+    print('Port-Forwarding fehlgeschlagen: ' + (e.message || e));
   }
 
-  if (!upnpOk) {
+  if (!portForwardOk) {
     let tailscaleIp = getTailscaleIp();
     if (tailscaleIp) {
       sshHost = tailscaleIp;
@@ -617,21 +687,31 @@ async function setupAppOnlySsh(rl) {
     print('Manuelle Eingabe:\n');
     const sshHost = await ask(rl, 'SSH_HOST (IP oder Hostname des DB-Rechners)', '');
     const sshUser = await ask(rl, 'SSH_USER', os.userInfo().username);
-    const keyPath = await ask(rl, 'Pfad zum privaten SSH-Schlüssel', '');
+    let keyPath = await ask(rl, 'Pfad zum privaten SSH-Schlüssel', '');
+    keyPath = keyPath.replace(/^["'\s]+|["'\s]+$/g, '').trim();
     const dbPassword = await ask(rl, 'DB_PASSWORD', '');
     if (!sshHost || !sshUser || !keyPath || !dbPassword) {
       print('\nFehler: Alle Angaben erforderlich.\n');
       process.exit(1);
     }
+    let keyContent = null;
+    if (fs.existsSync(keyPath)) {
+      try {
+        keyContent = fs.readFileSync(keyPath, 'utf8');
+        if (!keyContent.includes('PRIVATE KEY')) keyContent = null;
+      } catch (_) {}
+    }
     bundle = {
       ssh_host: sshHost,
       ssh_user: sshUser,
-      ssh_private_key: fs.existsSync(keyPath) ? fs.readFileSync(keyPath, 'utf8') : null,
+      ssh_private_key: keyContent,
       db_password: dbPassword,
       db_port: 5432,
     };
     if (!bundle.ssh_private_key) {
-      print('\nFehler: Schlüsseldatei nicht gefunden.\n');
+      print('\nFehler: Schlüsseldatei nicht gefunden.');
+      print('Prüfe den Pfad (ohne Anführungszeichen): ' + path.resolve(keyPath));
+      print('Tipp: Nutze die podcast-ssh-credentials.json vom DB-Rechner – darin ist der Schlüssel bereits enthalten.\n');
       process.exit(1);
     }
   }
