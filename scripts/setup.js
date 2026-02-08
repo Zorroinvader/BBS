@@ -212,14 +212,22 @@ function getLocalIP() {
   return '127.0.0.1';
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
 async function tryPortForward(port) {
   let lastExtIp = null;
+  const TIMEOUT = 3000;
   const methods = [
     ['UPnP (nat-upnp)', async () => {
       const natUpnp = require('nat-upnp');
       const client = natUpnp.createClient();
       return new Promise((resolve) => {
-        const t = setTimeout(() => resolve(null), 6000);
+        const t = setTimeout(() => resolve(null), TIMEOUT);
         client.portMapping({ public: port, private: port, ttl: 3600 }, (err) => {
           if (err) { clearTimeout(t); resolve(null); return; }
           client.externalIp((e, ip) => {
@@ -234,8 +242,8 @@ async function tryPortForward(port) {
       try {
         const { upnpNat } = await import('@achingbrain/nat-port-mapper');
         const client = upnpNat();
-        for await (const gateway of client.findGateways({ signal: AbortSignal.timeout(6000) })) {
-          await gateway.map(port, getLocalIP(), { protocol: 'tcp' });
+        for await (const gateway of client.findGateways({ signal: AbortSignal.timeout(TIMEOUT) })) {
+          await withTimeout(gateway.map(port, getLocalIP(), { protocol: 'tcp' }), TIMEOUT);
           lastExtIp = await gateway.externalIp();
           await gateway.stop();
           return true;
@@ -249,9 +257,9 @@ async function tryPortForward(port) {
       try {
         const { pmpNat } = await import('@achingbrain/nat-port-mapper');
         const dg = require('default-gateway');
-        const gw = await dg.v4();
+        const gw = await withTimeout(dg.v4(), TIMEOUT);
         const gateway = pmpNat(gw.gateway);
-        await gateway.map(port, getLocalIP(), { protocol: 'tcp' });
+        await withTimeout(gateway.map(port, getLocalIP(), { protocol: 'tcp' }), TIMEOUT);
         lastExtIp = await gateway.externalIp();
         await gateway.stop();
         return true;
