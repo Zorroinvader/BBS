@@ -325,7 +325,49 @@ function getTailscaleIp() {
   }
 }
 
+function tryInstallTailscaleStatic() {
+  const archMap = { x64: 'amd64', x86_64: 'amd64', aarch64: 'arm64', arm64: 'arm64', armv7l: 'arm', armv6l: 'arm' };
+  let arch = 'amd64';
+  try {
+    const uname = execSync('uname -m', { encoding: 'utf8' }).trim();
+    arch = archMap[uname] || archMap[os.arch()] || archMap[process.arch] || 'amd64';
+  } catch (_) {
+    arch = archMap[os.arch()] || archMap[process.arch] || 'amd64';
+  }
+  const versions = ['1.94.1', '1.92.5', '1.90.9'];
+  for (const ver of versions) {
+    const url = `https://pkgs.tailscale.com/stable/tailscale_${ver}_${arch}.tgz`;
+    const script = `#!/bin/sh
+set -e
+tmp=$(mktemp -d)
+trap "rm -rf $tmp" EXIT
+curl -fsSL "${url}" -o "$tmp/ts.tgz"
+tar xzf "$tmp/ts.tgz" -C "$tmp"
+dir=$(ls -d $tmp/tailscale_* 2>/dev/null | head -1)
+[ -n "$dir" ] && [ -f "$dir/tailscale" ] && [ -f "$dir/tailscaled" ] || exit 1
+sudo cp "$dir/tailscale" "$dir/tailscaled" /usr/local/bin/ 2>/dev/null || sudo cp "$dir/tailscale" "$dir/tailscaled" /usr/bin/
+if [ -d "$dir/systemd" ] && [ -f "$dir/systemd/tailscaled.service" ] && command -v systemctl >/dev/null 2>&1; then
+  sudo cp "$dir/systemd/tailscaled.service" /etc/systemd/system/ 2>/dev/null || true
+  sudo systemctl daemon-reload 2>/dev/null || true
+  sudo systemctl enable --now tailscaled 2>/dev/null || true
+fi`;
+    const tmpScript = path.join(os.tmpdir(), 'tailscale-install-' + Date.now() + '.sh');
+    try {
+      fs.writeFileSync(tmpScript, script, { mode: 0o700 });
+      execSync(`sh "${tmpScript}"`, { stdio: 'inherit', timeout: 120000 });
+      return isTailscaleInstalled();
+    } catch (_) {
+      // try next version
+    } finally {
+      try { fs.unlinkSync(tmpScript); } catch (_) {}
+    }
+  }
+  return false;
+}
+
 function tryInstallTailscale() {
+  if (isTailscaleInstalled()) return true;
+
   if (os.platform() === 'win32') {
     try {
       print('Installiere Tailscale (kein Port-Forwarding nötig)...');
@@ -347,14 +389,21 @@ function tryInstallTailscale() {
     }
   }
   if (os.platform() === 'linux') {
-    const cmds = [
-      ['Offizielles Install-Skript', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
-      ['apt (Debian/Ubuntu)', 'sudo apt-get update && sudo apt-get install -y tailscale'],
-      ['dnf (Fedora/RHEL)', 'sudo dnf install -y tailscale'],
-      ['zypper (openSUSE)', 'sudo zypper install -y tailscale'],
-      ['yay (Arch AUR)', 'yay -S --noconfirm tailscale'],
-      ['paru (Arch AUR)', 'paru -S --noconfirm tailscale'],
-    ];
+    const isArch = fs.existsSync('/etc/arch-release');
+    const cmds = isArch
+      ? [
+          ['yay (Arch AUR)', 'yay -S --noconfirm tailscale'],
+          ['paru (Arch AUR)', 'paru -S --noconfirm tailscale'],
+          ['Offizielles Install-Skript', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
+        ]
+      : [
+          ['Offizielles Install-Skript', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
+          ['apt (Debian/Ubuntu)', 'sudo apt-get update && sudo apt-get install -y tailscale'],
+          ['dnf (Fedora/RHEL)', 'sudo dnf install -y tailscale'],
+          ['zypper (openSUSE)', 'sudo zypper install -y tailscale'],
+          ['yay (Arch AUR)', 'yay -S --noconfirm tailscale'],
+          ['paru (Arch AUR)', 'paru -S --noconfirm tailscale'],
+        ];
     for (const [label, cmd] of cmds) {
       try {
         print('Installiere Tailscale: ' + label + '...');
@@ -364,11 +413,18 @@ function tryInstallTailscale() {
         print('  ' + label + ' fehlgeschlagen.');
       }
     }
+    try {
+      print('Installiere Tailscale: Statische Binaries (Fallback)...');
+      if (tryInstallTailscaleStatic()) return true;
+      print('  Statische Binaries fehlgeschlagen.');
+    } catch (e) {
+      print('  Statische Binaries fehlgeschlagen.');
+    }
     print('');
     print('Automatische Installation fehlgeschlagen. Bitte manuell installieren:');
-    print('  curl -fsSL https://tailscale.com/install.sh | sudo sh');
-    print('  Arch: yay -S tailscale  oder  paru -S tailscale  (falls pacman 404 liefert)');
-    print('  Oder: https://tailscale.com/download/linux');
+    print('  Arch: yay -S tailscale  oder  paru -S tailscale');
+    print('  Andere: curl -fsSL https://tailscale.com/install.sh | sudo sh');
+    print('  Fallback: https://pkgs.tailscale.com/stable/#static');
     print('');
     return false;
   }
