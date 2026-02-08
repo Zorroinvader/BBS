@@ -143,6 +143,17 @@ function ask(rl, question, defaultValue = '') {
   });
 }
 
+function printAppLink(url, isRunning = false) {
+  const u = url.replace(/\/$/, '');
+  print('');
+  print(isRunning ? '=== App gestartet ===' : '=== App-URL ===');
+  print('');
+  print('  ' + u);
+  print('');
+  print('  Admin: ' + u + '/admin/');
+  print('');
+}
+
 function getLocalIP() {
   const nets = os.networkInterfaces();
   for (const name of Object.keys(nets)) {
@@ -177,7 +188,8 @@ DB_PATH=./data/podcasts.db
 
   print('Entwicklungs-Setup fertig.');
   print('\nStart: npm start');
-  print('Oder mit Docker: docker compose up -d\n');
+  print('Oder mit Docker: docker compose up -d');
+  printAppLink('http://localhost:3000', false);
 }
 
 async function setupProd(rl) {
@@ -217,7 +229,8 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 
   print('Produktions-Setup fertig.');
   print('\nStart mit Docker: docker compose -f docker-compose.prod.yml up -d');
-  print('Stopp: docker compose -f docker-compose.prod.yml down\n');
+  print('Stopp: docker compose -f docker-compose.prod.yml down');
+  printAppLink(publicUrl, false);
 }
 
 async function setupOnlyDb(rl) {
@@ -309,7 +322,8 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   ensureDockerReady();
   runDockerComposeWithRetry('docker-compose.app-only.yml', ['build', 'up -d']);
   print('\nApp läuft und verbindet sich mit der Remote-DB.');
-  print('\nStopp: docker compose -f docker-compose.app-only.yml down\n');
+  print('Stopp: docker compose -f docker-compose.app-only.yml down');
+  printAppLink(publicUrl, true);
 }
 
 async function main() {
