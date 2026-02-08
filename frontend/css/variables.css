@@ -1,0 +1,10 @@
+:root {
+  --color-primary: #1e3a5f;
+  --color-primary-hover: #152a45;
+  --color-white: #FFFFFF;
+  --color-base: #FBFAF3;
+  --color-text: #111111;
+  --color-text-secondary: #686868;
+  --color-border: #ddd;
+  --font-family: 'Manrope', sans-serif;
+}

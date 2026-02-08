@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BBS II Wolfsburg – Unsere Podcasts</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="https://bbs2-wob.de/" class="site-logo">
+      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+      <span>Berufsbildende Schulen</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/alle-podcasts.html">Alle Podcasts</a>
+      <a href="/statistik.html">Statistik</a>
+      <a href="/admin/" class="btn btn-primary">Anmelden</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Unsere Schule – Unsere Podcasts</h1>
+    </div>
+  </section>
+
+  <main class="container">
+    <section class="section">
+      <h2>Hey, willkommen bei den BBS2-Podcasts!</h2>
+      <p>Hier findest du alle Folgen, die an unserer Schule produziert werden – von Interviews bis hin zu spannenden Projekten aus dem Unterricht. Hör rein, entdecke Neues und bleib immer auf dem Laufenden, was an der BBS2 so passiert.</p>
+    </section>
+
+    <section class="section">
+      <h2>Statistik</h2>
+      <div class="stats-grid" id="stats">
+        <div class="stat-card">
+          <div class="value" id="stat-listeners">0</div>
+          <div class="label">Aktive Hörer</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-hours">0h</div>
+          <div class="label">Streambare Stunden</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Unser letzter Upload</h2>
+      <div id="latest-upload"></div>
+    </section>
+
+    <section class="section">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0;">Alle Podcasts</h2>
+        <a href="/alle-podcasts.html">Alle anzeigen</a>
+      </div>
+      <div id="podcasts-preview" class="podcasts-list"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div>
+        <strong>BBS II Wolfsburg</strong><br>
+        Berufsbildende Schulen<br>
+        <span class="footer-tagline">Denn es ist Deine Zukunft.</span>
+      </div>
+      <div>
+        Kleiststraße 44, 38440 Wolfsburg | Tel 05361 261-200<br>
+        Dieselstraße 46, 38446 Wolfsburg | Tel 05361 85692-0
+      </div>
+    </div>
+    <div style="margin-top: 1rem;">
+      <a href="https://bbs2-wob.de/impressum/">Impressum</a> |
+      <a href="https://bbs2-wob.de/datenschutzerklaerung/">Datenschutzerklärung</a>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+  <script>
+    (async () => {
+      const API = '/api';
+      try {
+        const stats = await fetch(API + '/stats').then(r => r.json());
+        document.getElementById('stat-listeners').textContent = stats.activeListeners ?? 0;
+        document.getElementById('stat-hours').textContent = (stats.streamableHours ?? 0) + 'h';
+      } catch (_) {}
+
+      const ep = await fetch(API + '/episodes?limit=1').then(r => r.json());
+      const latest = ep.episodes?.[0];
+      const latestEl = document.getElementById('latest-upload');
+      latestEl.innerHTML = latest ? renderPodcastCard(latest) : '<p>Noch keine Podcasts vorhanden.</p>';
+
+      const list = await fetch(API + '/episodes?limit=5').then(r => r.json());
+      const previewEl = document.getElementById('podcasts-preview');
+      previewEl.innerHTML = (list.episodes || []).map(renderPodcastCard).join('') || '<p>Noch keine Podcasts vorhanden.</p>';
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin – BBS II Wolfsburg Podcasts</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .admin-form { max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .admin-form input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--color-border); border-radius: 4px; }
+    .admin-form button { width: 100%; padding: 0.75rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .admin-form button:hover { background: var(--color-primary-hover); }
+    #dashboard { display: none; }
+    .episode-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+    .episode-row a { margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="site-logo">
+      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+      <span>Admin</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/">Zur Startseite</a>
+      <span id="user-email"></span>
+      <a href="#" id="logout">Abmelden</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="login-form" class="admin-form">
+      <h2>Anmelden</h2>
+      <form id="login">
+        <input type="email" name="email" placeholder="E-Mail" required>
+        <input type="password" name="password" placeholder="Passwort" required>
+        <button type="submit">Anmelden</button>
+      </form>
+      <p id="login-error" style="color:red;display:none;"></p>
+    </div>
+
+    <div id="dashboard">
+      <h1>Admin Dashboard</h1>
+      <p><a href="upload.html" class="btn btn-primary">Neuen Podcast hochladen</a></p>
+      <h2>Episoden verwalten</h2>
+      <div id="episodes-list"></div>
+    </div>
+  </main>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function setToken(t) { localStorage.setItem(tokenKey, t); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+
+    function authHeaders() {
+      const t = getToken();
+      return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : {};
+    }
+
+    const loginForm = document.getElementById('login-form');
+    const dashboard = document.getElementById('dashboard');
+
+    if (getToken()) {
+      loginForm.style.display = 'none';
+      dashboard.style.display = 'block';
+      loadEpisodes();
+    }
+
+    document.getElementById('login').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const res = await fetch(API + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToken(data.token);
+        document.getElementById('user-email').textContent = data.user.email;
+        loginForm.style.display = 'none';
+        dashboard.style.display = 'block';
+        loadEpisodes();
+      } else {
+        document.getElementById('login-error').textContent = data.error || 'Anmeldung fehlgeschlagen';
+        document.getElementById('login-error').style.display = 'block';
+      }
+    };
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault();
+      clearToken();
+      location.reload();
+    };
+
+    async function loadEpisodes() {
+      const res = await fetch(API + '/episodes?limit=50', { headers: authHeaders() });
+      const data = await res.json();
+      const list = document.getElementById('episodes-list');
+      list.innerHTML = (data.episodes || []).map(ep => `
+        <div class="episode-row">
+          <span>${escapeHtml(ep.title)}</span>
+          <span>
+            <a href="#" onclick="editEpisode(${ep.id}); return false;">Bearbeiten</a>
+            <a href="#" onclick="deleteEpisode(${ep.id}); return false;" style="color:red;">Löschen</a>
+          </span>
+        </div>
+      `).join('') || '<p>Noch keine Episoden.</p>';
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    async function deleteEpisode(id) {
+      if (!confirm('Episoden wirklich löschen?')) return;
+      await fetch(API + '/episodes/' + id, { method: 'DELETE', headers: authHeaders() });
+      loadEpisodes();
+    }
+
+    function editEpisode(id) {
+      window.location = 'upload.html?id=' + id;
+    }
+  </script>
+</body>
+</html>

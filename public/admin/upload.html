@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Podcast hochladen – Admin</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .upload-form { max-width: 600px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .upload-form label { display: block; margin-top: 1rem; }
+    .upload-form input, .upload-form textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; border: 1px solid var(--color-border); border-radius: 4px; }
+    .upload-form textarea { min-height: 100px; }
+    .upload-form button { margin-top: 1rem; padding: 0.75rem 1.5rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .upload-form button:hover { background: var(--color-primary-hover); }
+    .step { display: none; }
+    .step.active { display: block; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a href="/admin/" class="site-logo">
+      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+      <span>Admin – Upload</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/admin/">Dashboard</a>
+      <a href="/">Zur Startseite</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="upload-form">
+      <h1>Podcast hochladen</h1>
+      <p>Schritt 1: Audio-Datei hochladen → Schritt 2: Metadaten bearbeiten → Schritt 3: Veröffentlichen</p>
+
+      <form id="upload-form">
+        <div class="step active" id="step1">
+          <h2>Schritt 1: Audio-Datei</h2>
+          <label>Datei (mp3 oder m4a, max. 200 MB)</label>
+          <input type="file" name="audio" accept=".mp3,.m4a,audio/mpeg,audio/x-m4a" required>
+        </div>
+
+        <div class="step" id="step2">
+          <h2>Schritt 2: Metadaten</h2>
+          <label>Titel *</label>
+          <input type="text" name="title" required placeholder="z.B. Folge 1 – Einführung">
+          <label>Beschreibung</label>
+          <textarea name="description" placeholder="Kurzbeschreibung der Episode"></textarea>
+          <label>Dauer (Sekunden, optional)</label>
+          <input type="number" name="duration_seconds" placeholder="z.B. 600 für 10 Min">
+        </div>
+
+        <button type="button" id="btn-next">Weiter</button>
+        <button type="submit" id="btn-publish" style="display:none;">Veröffentlichen</button>
+      </form>
+
+      <p id="status" style="margin-top:1rem;"></p>
+    </div>
+  </main>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+    let step = 1;
+    let selectedFile = null;
+
+    function getToken() { return localStorage.getItem(tokenKey); }
+    if (!getToken()) { window.location = '/admin/'; }
+
+    const form = document.getElementById('upload-form');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const btnNext = document.getElementById('btn-next');
+    const btnPublish = document.getElementById('btn-publish');
+
+    const urlParams = new URLSearchParams(location.search);
+    const editId = urlParams.get('id');
+    if (editId) {
+      document.querySelector('h1').textContent = 'Episoden bearbeiten';
+      step1.classList.remove('active');
+      step2.classList.add('active');
+      btnNext.style.display = 'none';
+      btnPublish.style.display = 'inline-block';
+      btnPublish.textContent = 'Speichern';
+      fetch(API + '/episodes/' + editId).then(r => r.json()).then(ep => {
+        form.elements.title.value = ep.title;
+        form.elements.description.value = ep.description || '';
+        form.elements.duration_seconds.value = ep.durationSeconds || '';
+      });
+    }
+
+    btnNext.onclick = () => {
+      const fileInput = form.audio;
+      if (!fileInput.files.length) { alert('Bitte wähle eine Audio-Datei.'); return; }
+      selectedFile = fileInput.files[0];
+      form.elements.title.value = form.elements.title.value || selectedFile.name.replace(/\.[^.]+$/, '');
+      step1.classList.remove('active');
+      step2.classList.add('active');
+      btnNext.style.display = 'none';
+      btnPublish.style.display = 'inline-block';
+    };
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const status = document.getElementById('status');
+      status.textContent = 'Wird hochgeladen...';
+
+      if (editId) {
+        const res = await fetch(API + '/episodes/' + editId, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: form.elements.title.value,
+            description: form.elements.description.value,
+            duration_seconds: form.elements.duration_seconds.value ? parseInt(form.elements.duration_seconds.value) : undefined
+          })
+        });
+        if (res.ok) {
+          status.textContent = 'Gespeichert.';
+          setTimeout(() => location.href = '/admin/', 1500);
+        } else {
+          status.textContent = 'Fehler: ' + (await res.json()).error;
+        }
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('audio', selectedFile);
+      fd.append('title', form.elements.title.value);
+      fd.append('description', form.elements.description.value);
+      if (form.elements.duration_seconds.value) fd.append('duration_seconds', form.elements.duration_seconds.value);
+
+      const res = await fetch(API + '/episodes', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + getToken() },
+        body: fd
+      });
+
+      if (res.ok) {
+        status.textContent = 'Hochgeladen! Der Podcast erscheint jetzt auf der Website.';
+        setTimeout(() => location.href = '/admin/', 2000);
+      } else {
+        const err = await res.json();
+        status.textContent = 'Fehler: ' + (err.error || res.statusText);
+      }
+    };
+  </script>
+</body>
+</html>

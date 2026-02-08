@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alle Podcasts – BBS II Wolfsburg</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="https://bbs2-wob.de/" class="site-logo">
+      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+      <span>Berufsbildende Schulen</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/">Start</a>
+      <a href="/alle-podcasts.html">Alle Podcasts</a>
+      <a href="/statistik.html">Statistik</a>
+      <a href="/admin/" class="btn btn-primary">Anmelden</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Alle Podcasts</h1>
+  </section>
+
+  <main class="container">
+    <section class="section">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <h2 style="margin: 0;">Alle Podcasts</h2>
+        <div class="view-toggle">
+          <button id="btn-list" title="Listenansicht">≡</button>
+          <button id="btn-grid" title="Rasteransicht">⊞</button>
+        </div>
+      </div>
+      <div id="podcasts" class="podcasts-list"></div>
+      <div class="pagination" id="pagination">
+        <button id="prev">‹</button>
+        <span id="page-info">1 / 1</span>
+        <button id="next">›</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div>
+        <strong>BBS II Wolfsburg</strong><br>
+        Berufsbildende Schulen<br>
+        <span class="footer-tagline">Denn es ist Deine Zukunft.</span>
+      </div>
+      <div>
+        Kleiststraße 44, 38440 Wolfsburg | Tel 05361 261-200<br>
+        Dieselstraße 46, 38446 Wolfsburg | Tel 05361 85692-0
+      </div>
+    </div>
+    <div style="margin-top: 1rem;">
+      <a href="https://bbs2-wob.de/impressum/">Impressum</a> |
+      <a href="https://bbs2-wob.de/datenschutzerklaerung/">Datenschutzerklärung</a>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+  <script>
+    const API = '/api';
+    let page = 1;
+    const limit = 10;
+    let viewMode = 'list';
+
+    async function load() {
+      const res = await fetch(`${API}/episodes?page=${page}&limit=${limit}`);
+      const data = await res.json();
+      const container = document.getElementById('podcasts');
+      container.className = viewMode === 'grid' ? 'podcasts-grid' : 'podcasts-list';
+      container.innerHTML = (data.episodes || []).map(renderPodcastCard).join('') || '<p>Keine Podcasts gefunden.</p>';
+
+      const totalPages = Math.max(1, Math.ceil((data.total || 0) / limit));
+      document.getElementById('page-info').textContent = `${page} / ${totalPages}`;
+      document.getElementById('prev').disabled = page <= 1;
+      document.getElementById('next').disabled = page >= totalPages;
+    }
+
+    document.getElementById('btn-list').onclick = () => { viewMode = 'list'; load(); };
+    document.getElementById('btn-grid').onclick = () => { viewMode = 'grid'; load(); };
+    document.getElementById('prev').onclick = () => { if (page > 1) { page--; load(); } };
+    document.getElementById('next').onclick = () => { page++; load(); };
+
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Statistik – BBS II Wolfsburg Podcasts</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="https://bbs2-wob.de/" class="site-logo">
+      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+      <span>Berufsbildende Schulen</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/">Start</a>
+      <a href="/alle-podcasts.html">Alle Podcasts</a>
+      <a href="/statistik.html">Statistik</a>
+      <a href="/admin/" class="btn btn-primary">Anmelden</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <h1>Statistik</h1>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="value" id="stat-listeners">0</div>
+          <div class="label">Aktive Hörer</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-hours">0h</div>
+          <div class="label">Streambare Stunden</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-episodes">0</div>
+          <div class="label">Episoden</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div>
+        <strong>BBS II Wolfsburg</strong><br>
+        Berufsbildende Schulen<br>
+        <span class="footer-tagline">Denn es ist Deine Zukunft.</span>
+      </div>
+      <div>
+        Kleiststraße 44, 38440 Wolfsburg | Tel 05361 261-200<br>
+        Dieselstraße 46, 38446 Wolfsburg | Tel 05361 85692-0
+      </div>
+    </div>
+    <div style="margin-top: 1rem;">
+      <a href="https://bbs2-wob.de/impressum/">Impressum</a> |
+      <a href="https://bbs2-wob.de/datenschutzerklaerung/">Datenschutzerklärung</a>
+    </div>
+  </footer>
+
+  <script>
+    fetch('/api/stats').then(r => r.json()).then(s => {
+      document.getElementById('stat-listeners').textContent = s.activeListeners ?? 0;
+      document.getElementById('stat-hours').textContent = (s.streamableHours ?? 0) + 'h';
+      document.getElementById('stat-episodes').textContent = s.episodeCount ?? 0;
+    }).catch(() => {});
+  </script>
+</body>
+</html>
