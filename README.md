@@ -40,7 +40,9 @@ Die Plattform läuft unter http://localhost:3000
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-**DB auf anderem Rechner**: Nur App-Container starten, `DATABASE_URL=postgresql://user:pass@db-host:5432/podcasts` setzen.
+**DB auf anderem Rechner (getrennte Hosts):**
+- Auf dem DB-Rechner: `node scripts/setup.js --only-db` → startet nur PostgreSQL, zeigt die Geräte-IP
+- Auf dem App-Rechner: `node scripts/setup.js --app-only` → fragt nach DB_HOST (IP des DB-Rechners), DB_PASSWORD, JWT_SECRET usw. und startet nur die App
 
 ## API-Verbindungszeichenfolge
 

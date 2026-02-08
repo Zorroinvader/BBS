@@ -55,6 +55,30 @@ Das Skript fragt interaktiv nach den Werten. Du kannst sie direkt einfügen und 
 
 Die Werte werden in `.env` gespeichert. Du kannst sie später in der `.env`-Datei anpassen.
 
+### Nur PostgreSQL (DB-Host)
+
+Für den Fall, dass die Datenbank auf einem eigenen Rechner laufen soll (z.B. Haupt-PC):
+
+```bash
+node scripts/setup.js --only-db
+```
+
+- Fragt nach **DB_PASSWORD** (oder übernimmt vorhandenen Wert aus `.env`)
+- Startet nur den PostgreSQL-Container
+- Zeigt die lokale IP an – diese brauchst du als `DB_HOST` auf dem App-Rechner
+
+### Nur App (Remote-DB)
+
+Für die App auf einem anderen Rechner, die sich mit der Remote-DB verbindet (z.B. Laptop):
+
+```bash
+node scripts/setup.js --app-only
+```
+
+- Fragt nach **DB_HOST** (IP des DB-Rechners), **DB_PASSWORD**, **JWT_SECRET**, **PUBLIC_URL**, **CORS_ORIGIN**
+- Installiert Abhängigkeiten und startet die App per Docker
+- Die App verbindet sich mit der PostgreSQL-Instanz auf dem DB-Host
+
 ---
 
 ## Schritt 3: Plattform starten
@@ -70,6 +94,16 @@ docker compose up -d
 **Produktion (PostgreSQL):**
 ```bash
 docker compose -f docker-compose.prod.yml up -d
+```
+
+**Nur DB (DB-Host):**
+```bash
+docker compose -f docker-compose.db-only.yml up -d
+```
+
+**Nur App (verbindet zu Remote-DB):**
+```bash
+docker compose -f docker-compose.app-only.yml up -d
 ```
 
 ### Ohne Docker (nur für Entwicklung)
@@ -98,6 +132,8 @@ npm start
 |-------|--------|-----------|-----|
 | Entwicklung | `--dev` | SQLite (lokal) | localhost:3000 |
 | Produktion | `--prod` | PostgreSQL (Docker) | Deine Domain |
+| Nur DB | `--only-db` | PostgreSQL (DB-Host) | — |
+| Nur App | `--app-only` | PostgreSQL (Remote) | localhost:3000 oder PUBLIC_URL |
 
 ---
 
