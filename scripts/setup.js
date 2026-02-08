@@ -8,13 +8,130 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const readline = require('readline');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const ENV_PATH = path.join(ROOT, '.env');
 
 function print(msg) {
   console.log(msg);
+}
+
+function isDockerReady() {
+  try {
+    execSync('docker info', { stdio: 'pipe' });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function isDockerDaemonError(err) {
+  const raw = err.stderr ? (Buffer.isBuffer(err.stderr) ? err.stderr.toString() : String(err.stderr)) : (err.message || '');
+  const msg = String(raw).toLowerCase();
+  return (
+    msg.includes('cannot connect') ||
+    msg.includes('failed to connect') ||
+    msg.includes('daemon running') ||
+    msg.includes('docker_engine') ||
+    msg.includes('npipe') ||
+    msg.includes('pipe/docker') ||
+    msg.includes('daemon')
+  );
+}
+
+function tryStartDockerDesktop() {
+  if (os.platform() !== 'win32') return false;
+  const paths = [
+    process.env['ProgramFiles'] + '\\Docker\\Docker\\Docker Desktop.exe',
+    process.env['ProgramFiles(x86)'] + '\\Docker\\Docker\\Docker Desktop.exe',
+  ].filter(Boolean);
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      try {
+        spawn(p, [], { detached: true, stdio: 'ignore' }).unref();
+        return true;
+      } catch (_) {}
+    }
+  }
+  return false;
+}
+
+function tryInstallDocker() {
+  try {
+    if (os.platform() === 'win32') {
+      print('Versuche Docker mit winget zu installieren...');
+      execSync('winget install Docker.DockerDesktop --accept-package-agreements --accept-source-agreements', {
+        stdio: 'inherit',
+      });
+      return true;
+    }
+    if (os.platform() === 'darwin') {
+      print('Installiere Docker mit Homebrew...');
+      execSync('brew install --cask docker', { stdio: 'inherit' });
+      return true;
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
+}
+
+function ensureDockerReady() {
+  if (isDockerReady()) return;
+
+  print('\nDocker ist nicht bereit.');
+
+  try {
+    execSync('docker --version', { stdio: 'pipe' });
+  } catch (_) {
+    print('Docker scheint nicht installiert zu sein.');
+    if (tryInstallDocker()) {
+      print('\nDocker wurde installiert. Starte Docker Desktop und führe dieses Skript erneut aus.');
+      print('Möglicherweise ist ein Neustart nötig.\n');
+      process.exit(0);
+    }
+    print('\nInstallation fehlgeschlagen. Bitte Docker manuell installieren:');
+    print('  Windows: https://docs.docker.com/desktop/install/windows-install/');
+    print('  Oder: winget install Docker.DockerDesktop\n');
+    process.exit(1);
+  }
+
+  print('Docker-Daemon läuft nicht. Starte Docker Desktop...');
+  if (tryStartDockerDesktop()) {
+    print('Warte auf Docker (bis zu 90 Sekunden)...');
+    for (let i = 0; i < 30; i++) {
+      if (isDockerReady()) {
+        print('Docker ist bereit.\n');
+        return;
+      }
+      const deadline = Date.now() + 3000;
+      while (Date.now() < deadline) {}
+    }
+    print('\nDocker startet zu langsam. Bitte starte Docker Desktop manuell und führe das Skript erneut aus.\n');
+    process.exit(1);
+  }
+
+  print('\nDocker Desktop wurde nicht gefunden. Bitte starte Docker manuell und führe das Skript erneut aus.\n');
+  process.exit(1);
+}
+
+function runDockerComposeWithRetry(composeFile, commands) {
+  const run = () => {
+    for (const cmd of commands) {
+      execSync(`docker compose -f ${composeFile} ${cmd}`, { cwd: ROOT, stdio: 'inherit' });
+    }
+  };
+  try {
+    run();
+  } catch (e) {
+    if (isDockerDaemonError(e)) {
+      ensureDockerReady();
+      run();
+    } else {
+      throw e;
+    }
+  }
 }
 
 function ask(rl, question, defaultValue = '') {
@@ -137,7 +254,8 @@ async function setupOnlyDb(rl) {
   }
 
   print('Starte PostgreSQL...');
-  execSync('docker compose -f docker-compose.db-only.yml up -d', { cwd: ROOT, stdio: 'inherit' });
+  ensureDockerReady();
+  runDockerComposeWithRetry('docker-compose.db-only.yml', ['up -d']);
   print('\nPostgreSQL läuft.\n');
 
   const ip = getLocalIP();
@@ -188,8 +306,8 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   }
 
   print('Baue und starte die App...');
-  execSync('docker compose -f docker-compose.app-only.yml build', { cwd: ROOT, stdio: 'inherit' });
-  execSync('docker compose -f docker-compose.app-only.yml up -d', { cwd: ROOT, stdio: 'inherit' });
+  ensureDockerReady();
+  runDockerComposeWithRetry('docker-compose.app-only.yml', ['build', 'up -d']);
   print('\nApp läuft und verbindet sich mit der Remote-DB.');
   print('\nStopp: docker compose -f docker-compose.app-only.yml down\n');
 }
