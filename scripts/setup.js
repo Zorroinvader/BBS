@@ -256,6 +256,68 @@ async function fetchExternalIp() {
   });
 }
 
+function isTailscaleInstalled() {
+  try {
+    execSync('tailscale version', { stdio: 'pipe' });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function getTailscaleIp() {
+  try {
+    const out = execSync('tailscale ip -4 -1', { stdio: 'pipe', encoding: 'utf8' });
+    const ip = (out || '').trim();
+    return ip && /^100\.\d+\.\d+\.\d+$/.test(ip) ? ip : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function tryInstallTailscale() {
+  try {
+    if (os.platform() === 'win32') {
+      print('Installiere Tailscale (kein Port-Forwarding nötig)...');
+      execSync('winget install Tailscale.Tailscale --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
+      return true;
+    }
+    if (os.platform() === 'linux' || os.platform() === 'darwin') {
+      print('Installiere Tailscale (kein Port-Forwarding nötig)...');
+      print('Hinweis: sudo-Passwort eventuell erforderlich.');
+      execSync('curl -fsSL https://tailscale.com/install.sh | sh', { stdio: 'inherit' });
+      return true;
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
+}
+
+function printTransferFiles(sshHost) {
+  const credsAbs = path.resolve(CREDS_PATH);
+  const rootAbs = path.resolve(ROOT);
+  const sshDir = path.join(ROOT, '.ssh');
+  const sshKeyPath = path.join(sshDir, 'podcast_tunnel');
+
+  print('');
+  print('=== DATEIEN FÜR ÜBERTRAGUNG ===');
+  print('');
+  print('Projektverzeichnis:');
+  print('  ' + rootAbs);
+  print('');
+  print('Diese Datei auf den App-Rechner kopieren (USB, SCP, E-Mail, etc.):');
+  print('  ' + credsAbs);
+  print('');
+  print('Enthält: SSH-Schlüssel, DB_PASSWORD, ssh_host (' + sshHost + '), ssh_user');
+  print('');
+  print('SSH-Schlüssel (falls manuell benötigt):');
+  print('  ' + (fs.existsSync(sshKeyPath) ? path.resolve(sshKeyPath) : '(wird in .ssh/ erzeugt)'));
+  print('');
+  print('=== ENDE ===');
+  print('');
+}
+
 async function setupDev(rl) {
   print('\n=== Entwicklungs-Setup (localhost, SQLite) ===\n');
   const env = `# Entwicklungs-Setup
@@ -432,23 +494,45 @@ async function setupOnlyDbSsh(rl) {
   }
 
   if (!upnpOk) {
-    const fallback = await fetchExternalIp();
-    if (fallback) sshHost = fallback;
-    print('\nFalls Verbindung von außen nicht klappt:');
-    print('- Installiere Tailscale auf beiden Rechnern und nutze die Tailscale-IP als ssh_host');
-    print('- Oder richte Portweiterleitung (Port 22) auf deinem Router manuell ein.\n');
+    let tailscaleIp = getTailscaleIp();
+    if (tailscaleIp) {
+      sshHost = tailscaleIp;
+      print('Tailscale gefunden. SSH-Host: ' + sshHost);
+    } else {
+      const hadTailscale = isTailscaleInstalled();
+      if (!hadTailscale && tryInstallTailscale()) {
+        print('\nTailscale wurde installiert.');
+        print('Bitte starte Tailscale und melde dich an:');
+        if (os.platform() === 'win32') {
+          print('  Starte "Tailscale" aus dem Startmenü und melde dich an.');
+        } else {
+          print('  sudo tailscale up');
+        }
+        print('\nDann führe dieses Skript erneut aus: node scripts/setup.js --db-only-ssh');
+        print('');
+        process.exit(0);
+      } else if (hadTailscale) {
+        print('\nTailscale ist installiert, aber nicht verbunden.');
+        print('Starte Tailscale: ' + (os.platform() === 'win32' ? 'Tailscale aus Startmenü starten' : 'sudo tailscale up'));
+        print('Dann Skript erneut ausführen.');
+      }
+      const fallback = await fetchExternalIp();
+      if (fallback) sshHost = fallback;
+      if (!tailscaleIp) {
+        print('\nAlternativ: Portweiterleitung (Port 22) auf dem Router manuell einrichten.');
+      }
+    }
   }
 
   const bundle = createCredentialsBundle(dbPassword, sshHost, 5432);
   fs.writeFileSync(CREDS_PATH, JSON.stringify(bundle, null, 2), { mode: 0o600 });
-  print('\nCredentials gespeichert: podcast-ssh-credentials.json');
-  print('');
+
+  printTransferFiles(sshHost);
+
   print('Nächste Schritte:');
-  print('1. Kopiere podcast-ssh-credentials.json auf den App-Rechner (USB, SCP, etc.)');
+  print('1. Kopiere die Credentials-Datei (siehe oben) auf den App-Rechner');
   print('2. Auf dem App-Rechner: node scripts/setup.js --app-only-ssh');
-  print('3. Gib den Pfad zur Datei an oder füge die Werte manuell ein.');
-  print('');
-  print('SSH-Host für App: ' + sshHost);
+  print('3. Gib den Pfad zur Datei an.');
   print('');
   print('Starte Live DB-Log... (Strg+C zum Beenden)\n');
   rl.close();
@@ -638,6 +722,9 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 
   print('\nStopp: Strg+C beendet App und SSH-Tunnel.');
   printAppLink(publicUrl, true);
+  print('Konfiguration gespeichert in:');
+  print('  .env: ' + path.resolve(ENV_PATH));
+  print('  SSH-Schlüssel: ' + path.resolve(path.join(ROOT, '.ssh', 'podcast_tunnel')));
 
   process.on('SIGINT', () => {
     tunnel.kill('SIGINT');

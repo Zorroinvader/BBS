@@ -7,7 +7,9 @@ Die einfachste Methode für Verbindungen aus anderen Netzwerken:
 1. **DB-Rechner**: `node scripts/setup.js --db-only-ssh`
    - Startet PostgreSQL und erstellt SSH-Credentials
    - Versucht automatisch UPnP-Portweiterleitung (Port 22)
-   - Erzeugt `podcast-ssh-credentials.json`
+   - **Falls UPnP fehlschlägt:** installiert automatisch Tailscale
+   - Erzeugt `podcast-ssh-credentials.json` im Projektverzeichnis
+   - **Dateien für Übertragung:** Das Skript zeigt den vollständigen Pfad – z.B. `C:\Users\...\BBS\podcast-ssh-credentials.json`
 
 2. **Credentials übertragen**: Kopiere die Datei auf den App-Rechner
 

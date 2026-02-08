@@ -24,7 +24,10 @@ node scripts/setup.js --db-only-ssh
 - Startet PostgreSQL
 - Erzeugt SSH-Schlüssel
 - Versucht UPnP-Portweiterleitung (Port 22)
-- Erstellt `podcast-ssh-credentials.json`
+- **Falls UPnP fehlschlägt:** installiert automatisch Tailscale (kein Port-Forwarding nötig)
+- Erstellt `podcast-ssh-credentials.json` im Projektverzeichnis
+
+**Dateien für Übertragung:** Das Skript zeigt dir den vollständigen Pfad zur Credentials-Datei.
 
 ### 2. Credentials übertragen
 
