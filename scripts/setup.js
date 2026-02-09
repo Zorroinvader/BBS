@@ -43,7 +43,7 @@ function progressBar(percent, width = 32, label = '') {
   const sub = Math.floor(((percent / 100) * width - filled) * (BARS.length - 1));
   const bar = BARS[BARS.length - 1].repeat(filled) + (filled < width ? BARS[sub] || '' : '');
   const empty = '░'.repeat(width - bar.length);
-  return `  ${col('▐', 'bright')}${col(bar, 'cyan')}${empty}${col('▌', 'bright')} ${col(Math.round(percent) + '%', 'bright', 'cyan')}  ${label}`;
+  return `  ${col('▐', 'bright', 'magenta')}${col(bar, 'bright', 'cyan')}${col(empty, 'dim')}${col('▌', 'bright', 'magenta')} ${col(Math.round(percent) + '%', 'bright', 'green')}  ${label}`;
 }
 
 function animateProgressBar(durationMs, label, updateInterval = 80) {
@@ -90,18 +90,18 @@ function banner() {
   const w = 50;
   const title = '▸ BBS Podcast Platform · Setup Wizard';
   const pad = ' '.repeat(Math.max(0, w - 2 - title.length));
-  const line = '─'.repeat(w);
+  const line = '═'.repeat(w);
   console.log('');
-  console.log(col('  ╭' + line + '╮', 'cyan'));
-  console.log(col('  │ ', 'cyan') + col(title, 'bright', 'white') + col(pad + ' │', 'cyan'));
-  console.log(col('  ╰' + line + '╯', 'cyan'));
+  console.log(col('  ╔' + line + '╗', 'magenta'));
+  console.log(col('  ║ ', 'magenta') + col('▸ ', 'green') + col('BBS Podcast Platform', 'bright', 'cyan') + col(' · ', 'dim') + col('Setup Wizard', 'bright', 'yellow') + col(pad + ' ║', 'magenta'));
+  console.log(col('  ╚' + line + '╝', 'magenta'));
   console.log('');
 }
 
 function section(title, icon = '◆') {
-  const line = col('─'.repeat(56), 'dim');
+  const line = col('─'.repeat(52), 'dim');
   console.log('');
-  console.log(col(`  ${icon} `, 'cyan') + col(title, 'bright', 'white'));
+  console.log(col(`  ${icon} `, 'green') + col(title, 'bright', 'cyan'));
   console.log('  ' + line);
 }
 
@@ -111,19 +111,19 @@ function stepReset() {
 }
 function step(msg) {
   _stepCounter++;
-  console.log(col(`  [${_stepCounter}] `, 'cyan') + msg);
+  console.log(col(`  [${_stepCounter}] `, 'bright', 'magenta') + msg);
 }
 
 function success(msg) {
-  console.log(col('  ✓ ', 'green') + col(msg, 'green'));
+  console.log(col('  ✓ ', 'bright', 'green') + col(msg, 'green'));
 }
 
 function warn(msg) {
-  console.log(col('  ⚠ ', 'yellow') + col(msg, 'yellow'));
+  console.log(col('  ⚠ ', 'bright', 'yellow') + col(msg, 'yellow'));
 }
 
 function error(msg) {
-  console.log(col('  ✗ ', 'red') + col(msg, 'red'));
+  console.log(col('  ✗ ', 'bright', 'red') + col(msg, 'red'));
 }
 
 function checkPortReachable(host, port, timeoutMs = 5000) {
@@ -226,12 +226,12 @@ function tryStartDockerDesktop() {
 function tryInstallDocker() {
   try {
     if (os.platform() === 'win32') {
-      console.log(col('  ⏳ ', 'yellow') + col('Versuche Docker mit winget zu installieren...', 'yellow'));
+      console.log(col('  ⏳ ', 'yellow') + col('Trying to install Docker via winget...', 'yellow'));
       execSync('winget install Docker.DockerDesktop --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
       return true;
     }
     if (os.platform() === 'darwin') {
-      console.log(col('  ⏳ ', 'yellow') + col('Installiere Docker mit Homebrew...', 'yellow'));
+      console.log(col('  ⏳ ', 'yellow') + col('Installing Docker via Homebrew...', 'yellow'));
       execSync('brew install --cask docker', { stdio: 'inherit' });
       return true;
     }
@@ -244,52 +244,52 @@ function tryInstallDocker() {
 async function ensureDockerReady() {
   if (isDockerReady()) return;
   console.log('');
-  error('Docker ist nicht bereit.');
+  error('Docker is not ready.');
   const inContainer = isDockerEnv();
   if (inContainer) {
     console.log('');
-    warn('Läuft in Docker/Dev Container. Stelle sicher, dass der Docker-Socket gemountet ist.');
-    warn('Beispiel: -v /var/run/docker.sock:/var/run/docker.sock');
+    warn('Running in Docker/Dev Container. Ensure the Docker socket is mounted.');
+    warn('Example: -v /var/run/docker.sock:/var/run/docker.sock');
   }
   try {
     execSync('docker --version', { stdio: 'pipe' });
   } catch (_) {
-    error('Docker scheint nicht installiert zu sein.');
+    error('Docker does not appear to be installed.');
     if (!inContainer && tryInstallDocker()) {
       console.log('');
-      success('Docker wurde installiert. Starte Docker Desktop und führe dieses Skript erneut aus.');
+      success('Docker installed. Start Docker Desktop and run this script again.');
       process.exit(0);
     }
     console.log('');
-    error('Installation fehlgeschlagen. Bitte Docker manuell installieren oder Docker Desktop starten.');
+    error('Installation failed. Please install Docker manually or start Docker Desktop.');
     process.exit(1);
   }
   if (inContainer) {
-    error('Docker-Daemon in Container nicht erreichbar. Starte das Setup auf dem Host mit Docker Desktop.');
+    error('Docker daemon not reachable in container. Run setup on host with Docker Desktop.');
     process.exit(1);
   }
-  step(col('Docker-Daemon läuft nicht. Starte Docker Desktop...', 'yellow'));
+  step(col('Docker daemon not running. Starting Docker Desktop...', 'yellow'));
   if (tryStartDockerDesktop()) {
     const maxWait = 90;
     const start = Date.now();
     for (let i = 0; i < 30; i++) {
       const elapsed = (Date.now() - start) / 1000;
       const pct = Math.min(95, (elapsed / maxWait) * 100);
-      process.stdout.write('\r' + progressBar(pct, 32, col('Warte auf Docker...', 'dim')) + '    ');
+      process.stdout.write('\r' + progressBar(pct, 32, col('Waiting for Docker...', 'dim')) + '    ');
       if (isDockerReady()) {
-        process.stdout.write('\r' + progressBar(100, 32, col('Docker bereit!', 'green')) + '\n');
-        success('Docker ist bereit.');
+        process.stdout.write('\r' + progressBar(100, 32, col('Docker ready!', 'green')) + '\n');
+        success('Docker is ready.');
         console.log('');
         return;
       }
       await new Promise((r) => setTimeout(r, 3000));
     }
     console.log('');
-    error('Docker startet zu langsam. Bitte starte Docker Desktop manuell.');
+    error('Docker is starting too slowly. Please start Docker Desktop manually.');
     process.exit(1);
   }
   console.log('');
-  error('Docker Desktop wurde nicht gefunden. Bitte starte Docker manuell.');
+  error('Docker Desktop not found. Please start Docker manually.');
   process.exit(1);
 }
 
@@ -312,7 +312,7 @@ function waitForApp(baseUrl, maxAttempts = 60) {
       const pct = Math.min(95, (elapsed / maxDuration) * 100);
       if (pct > lastPct) {
         lastPct = pct;
-        process.stdout.write('\r' + progressBar(pct, 32, col('Warte auf App & DB...', 'dim')) + '    ');
+        process.stdout.write('\r' + progressBar(pct, 32, col('Waiting for App & DB...', 'dim')) + '    ');
       }
     }, 250);
     const tryFetch = () => {
@@ -326,7 +326,7 @@ function waitForApp(baseUrl, maxAttempts = 60) {
               const json = JSON.parse(data);
               if (json.db === 'connected' || json.status === 'ok') {
                 clearInterval(progressIv);
-                process.stdout.write('\r' + progressBar(100, 32, col('App bereit!', 'green')) + '\n');
+                process.stdout.write('\r' + progressBar(100, 32, col('App ready!', 'green')) + '\n');
                 resolve(true);
                 return;
               }
@@ -334,21 +334,21 @@ function waitForApp(baseUrl, maxAttempts = 60) {
           }
           if (attempts >= maxAttempts) {
             clearInterval(progressIv);
-            reject(new Error('App oder DB-Verbindung nicht bereit'));
+            reject(new Error('App or DB connection not ready'));
           } else setTimeout(tryFetch, interval);
         });
       });
       req.on('error', () => {
         if (attempts >= maxAttempts) {
           clearInterval(progressIv);
-          reject(new Error('App nicht erreichbar'));
+          reject(new Error('App not reachable'));
         } else setTimeout(tryFetch, interval);
       });
       req.on('timeout', () => {
         req.destroy();
         if (attempts >= maxAttempts) {
           clearInterval(progressIv);
-          reject(new Error('App antwortet nicht'));
+          reject(new Error('App not responding'));
         } else setTimeout(tryFetch, interval);
       });
     };
@@ -374,6 +374,39 @@ async function runDockerComposeWithRetry(composeFile, commands) {
   }
 }
 
+function askChoice(rl, question, choices) {
+  const lines = choices.map((ch, i) => `  ${col(String(i + 1), 'cyan')}) ${ch.label}`);
+  return new Promise((resolve) => {
+    const show = () => {
+      console.log('');
+      console.log(col(question, 'bright'));
+      console.log(lines.join('\n'));
+      console.log('');
+      rl.question(col('  Choice (1-' + choices.length + '): ', 'cyan'), (answer) => {
+        const n = parseInt(answer.trim(), 10);
+        if (n >= 1 && n <= choices.length) {
+          resolve(choices[n - 1].value);
+        } else {
+          warn('Invalid choice. Please enter 1–' + choices.length + '.');
+          show();
+        }
+      });
+    };
+    show();
+  });
+}
+
+function askYesNo(rl, question, defaultValue = true) {
+  const def = defaultValue ? 'Y/n' : 'y/N';
+  return new Promise((resolve) => {
+    rl.question(col(question, 'cyan') + ` [${def}]: `, (answer) => {
+      const a = answer.trim().toLowerCase();
+      if (!a) resolve(defaultValue);
+      else resolve(a === 'y' || a === 'yes' || a === 'j' || a === 'ja');
+    });
+  });
+}
+
 function ask(rl, question, defaultValue = '', options = {}) {
   const { secret = false } = options;
   if (secret && readSecret && process.stdin.isTTY) {
@@ -390,7 +423,7 @@ function ask(rl, question, defaultValue = '', options = {}) {
   }
   const suffix = defaultValue ? ` ${col('[', 'dim')}${defaultValue}${col(']', 'dim')}: ` : ': ';
   if (secret && !readSecret) {
-    warn('Hinweis: Passwort wird sichtbar eingegeben (read-Paket fehlt oder kein TTY).');
+    warn('Note: Password will be visible (read package missing or no TTY).');
   }
   return new Promise((resolve) => {
     rl.question(col(question, 'cyan') + suffix, (answer) => {
@@ -405,12 +438,12 @@ function printAppLink(url, isRunning = false) {
   const w = Math.max(40, u.length + 4, adminUrl.length + 10);
   const pad = (s, len) => s + ' '.repeat(Math.max(0, len - s.length));
   console.log('');
-  console.log(col('  ┌' + '─'.repeat(w - 2) + '┐', 'green'));
-  console.log(col('  │ ', 'green') + col(pad(isRunning ? '✓ App läuft' : '► App-URL', w - 4), 'bright', 'green') + col(' │', 'green'));
-  console.log(col('  ├' + '─'.repeat(w - 2) + '┤', 'green'));
-  console.log(col('  │ ', 'green') + col(pad(u, w - 4), 'bright', 'cyan') + col(' │', 'green'));
-  console.log(col('  │ ', 'green') + col(pad('Admin: ' + adminUrl, w - 4), 'dim') + col(' │', 'green'));
-  console.log(col('  └' + '─'.repeat(w - 2) + '┘', 'green'));
+  console.log(col('  ┌' + '─'.repeat(w - 2) + '┐', 'cyan'));
+  console.log(col('  │ ', 'cyan') + col(pad(isRunning ? '✓ App running' : '► App URL', w - 4), 'bright', 'green') + col(' │', 'cyan'));
+  console.log(col('  ├' + '─'.repeat(w - 2) + '┤', 'cyan'));
+  console.log(col('  │ ', 'cyan') + col(pad(u, w - 4), 'bright', 'magenta') + col(' │', 'cyan'));
+  console.log(col('  │ ', 'cyan') + col(pad('Admin: ' + adminUrl, w - 4), 'dim') + col(' │', 'cyan'));
+  console.log(col('  └' + '─'.repeat(w - 2) + '┘', 'cyan'));
   console.log('');
 }
 
@@ -452,10 +485,10 @@ function printTransferFiles(sshHost, isVps = false, sshUser = null) {
 }
 
 async function setupDev(rl) {
-  section('Entwicklungs-Setup (localhost, SQLite)', '◇');
+  section('Development Setup (localhost, SQLite)', '◇');
   stepReset();
-  step('Erstelle .env...');
-  const env = `# Entwicklungs-Setup
+  step('Creating .env...');
+  const env = `# Development setup
 PORT=3000
 HOST=0.0.0.0
 PUBLIC_URL=http://localhost:3000
@@ -463,34 +496,40 @@ JWT_SECRET=dev-secret-change-in-production
 DB_PATH=./data/podcasts.db
 `;
   fs.writeFileSync(ENV_PATH, env);
-  success('.env erstellt');
-  step('Installiere Abhängigkeiten...');
+  success('.env created');
+  step('Installing dependencies...');
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
-    success('Abhängigkeiten installiert');
+    success('Dependencies installed');
   } catch (e) {
-    warn('npm install fehlgeschlagen – führe es manuell aus.');
+    warn('npm install failed – run it manually.');
+  }
+  step('Starting Docker Compose...');
+  try {
+    await ensureDockerReady();
+    execSync('docker compose up -d', { cwd: ROOT, stdio: 'inherit' });
+    success('Docker Compose started – app is running');
+  } catch (e) {
+    warn('Docker Compose failed – run manually: docker compose up -d');
+    console.log(col('  Or start with:', 'dim') + ' npm start');
   }
   console.log('');
-  success('Entwicklungs-Setup abgeschlossen!');
-  console.log('');
-  console.log(col('  Start:', 'dim') + ' npm start');
-  console.log(col('  Oder:', 'dim') + ' docker compose up -d');
-  printAppLink('http://localhost:3000', false);
+  success('Development setup complete!');
+  printAppLink('http://localhost:3000', true);
 }
 
 async function setupProd(rl) {
-  section('Produktions-Setup', '◇');
+  section('Production Setup', '◇');
   stepReset();
-  step('Konfiguration abfragen...');
+  step('Gathering configuration...');
   const envContent = loadEnv();
   const publicUrl = await ask(rl, 'PUBLIC_URL', envContent.PUBLIC_URL || 'https://podcast.bbs2-wob.de');
   const dbPassword = await ask(rl, 'DB_PASSWORD', envContent.DB_PASSWORD || '', { secret: true });
-  const jwtSecret = await ask(rl, 'JWT_SECRET (mind. 32 Zeichen, für Admin-Login)', envContent.JWT_SECRET || '', { secret: true });
+  const jwtSecret = await ask(rl, 'JWT_SECRET (min 32 chars, for admin login)', envContent.JWT_SECRET || '', { secret: true });
   const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional)', envContent.CORS_ORIGIN || '');
 
   if (!dbPassword || !jwtSecret) {
-    print('\nFehler: DB_PASSWORD und JWT_SECRET sind erforderlich.\n');
+    print('\nError: DB_PASSWORD and JWT_SECRET are required.\n');
     process.exit(1);
   }
 
@@ -502,18 +541,18 @@ JWT_SECRET=${jwtSecret}
 DB_PASSWORD=${dbPassword}
 ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 `;
-  step('.env erstellen...');
+  step('Creating .env...');
   fs.writeFileSync(ENV_PATH, env);
-  success('.env erstellt');
-  step('Abhängigkeiten installieren...');
+  success('.env created');
+  step('Installing dependencies...');
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
-    success('Abhängigkeiten installiert');
+    success('Dependencies installed');
   } catch (e) {
-    warn('npm install fehlgeschlagen – ggf. manuell ausführen.');
+    warn('npm install failed – run manually if needed.');
   }
   console.log('');
-  success('Produktions-Setup abgeschlossen!');
+  success('Production setup complete!');
   console.log(col('  Start:', 'dim') + ' docker compose -f docker-compose.prod.yml up -d');
   printAppLink(publicUrl, false);
 }
@@ -782,21 +821,21 @@ function printReverseSshInstructions(vpsHost, vpsUser, publicKey) {
 }
 
 async function setupAppOnly(rl) {
-  section('Nur App (verbindet zu Remote-DB)', '◇');
+  section('App only (connects to remote DB)', '◇');
   stepReset();
-  step('Konfiguration abfragen...');
+  step('Gathering configuration...');
   const envContent = loadEnv();
   // Direct connection always uses PostgreSQL default 5432 (5433 is for SSH tunnel)
   const defaultPort = (envContent.DB_PORT === '5433') ? '5432' : (envContent.DB_PORT || '5432');
-  const dbHost = await ask(rl, 'DB_HOST (IP des DB-Rechners)', envContent.DB_HOST || '');
-  const dbPort = await ask(rl, 'DB_PORT (5432 für direkte Verbindung)', defaultPort);
+  const dbHost = await ask(rl, 'DB_HOST (IP of DB server)', envContent.DB_HOST || '');
+  const dbPort = await ask(rl, 'DB_PORT (5432 for direct connection)', defaultPort);
   const dbPassword = await ask(rl, 'DB_PASSWORD', envContent.DB_PASSWORD || '', { secret: true });
-  const jwtSecret = await ask(rl, 'JWT_SECRET (mind. 32 Zeichen, für Admin-Login)', envContent.JWT_SECRET || '', { secret: true });
-  const publicUrl = await ask(rl, 'PUBLIC_URL', envContent.PUBLIC_URL || 'http://localhost:3000');
+  const jwtSecret = await ask(rl, 'JWT_SECRET (min 32 chars, for admin login)', envContent.JWT_SECRET || '', { secret: true });
+  const publicUrl = await ask(rl, 'PUBLIC_URL (address to access the app)', envContent.PUBLIC_URL || 'http://localhost:3000');
   const corsOrigin = await ask(rl, 'CORS_ORIGIN (optional)', envContent.CORS_ORIGIN || '');
 
   if (!dbHost || !dbPassword || !jwtSecret) {
-    print('\nFehler: DB_HOST, DB_PASSWORD und JWT_SECRET sind erforderlich.\n');
+    print('\nError: DB_HOST, DB_PASSWORD and JWT_SECRET are required.\n');
     process.exit(1);
   }
 
@@ -812,37 +851,38 @@ DB_PASSWORD=${dbPassword}
 DATABASE_URL=postgresql://podcast:${dbPassword}@${dbHost}:${port}/podcasts
 ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 `;
-  step('.env erstellen...');
+  step('Creating .env...');
   fs.writeFileSync(ENV_PATH, env);
-  success('.env erstellt');
+  success('.env created');
 
-  step('Abhängigkeiten installieren...');
+  step('Installing dependencies...');
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
-    success('Abhängigkeiten installiert');
+    success('Dependencies installed');
   } catch (e) {}
 
   if (!fs.existsSync(path.join(ROOT, 'docker-compose.app-only.yml'))) {
-    print('Fehler: docker-compose.app-only.yml fehlt.\n');
+    print('Error: docker-compose.app-only.yml not found.\n');
     process.exit(1);
   }
 
-  step('Docker prüfen und App starten...');
+  step('Starting app with Docker...');
   await ensureDockerReady();
   await runDockerComposeWithRetry('docker-compose.app-only.yml', ['build', 'up -d']);
 
-  print('\nWarte auf App und teste DB-Verbindung (bis zu 2 Min.)...');
+  print('\nWaiting for app and testing DB connection (up to 2 min)...');
   try {
     await waitForApp('http://localhost:3000');
-    success('App läuft, DB-Verbindung OK.');
+    success('App started successfully.');
   } catch (e) {
     console.log('');
     warn(e.message);
-    console.log(col('  Prüfe: ', 'dim') + 'docker compose -f docker-compose.app-only.yml logs');
+    console.log(col('  Check: ', 'dim') + 'docker compose -f docker-compose.app-only.yml logs');
   }
   console.log('');
-  console.log(col('  Stopp: ', 'dim') + 'docker compose -f docker-compose.app-only.yml down');
+  success('Your app is running at the address you entered:');
   printAppLink(publicUrl, true);
+  console.log(col('  Stop: ', 'dim') + 'docker compose -f docker-compose.app-only.yml down');
 }
 
 async function setupAppOnlySsh(rl) {
@@ -1094,15 +1134,15 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   print('\nWarte auf App und teste DB-Verbindung...');
   try {
     await waitForApp('http://localhost:3000');
-    success('App läuft, DB-Verbindung OK.');
+    success('App running, DB connection OK.');
   } catch (e) {
     console.log('');
     warn(e.message);
   }
 
-  print('\nStopp: Strg+C beendet App und SSH-Tunnel.');
+  print('\nStop: Ctrl+C stops app and SSH tunnel.');
   printAppLink(publicUrl, true);
-  print('Konfiguration gespeichert in:');
+  print('Configuration saved in:');
   print('  .env: ' + path.resolve(ENV_PATH));
   print('  SSH-Schlüssel: ' + getAppSshKeyPath());
 
@@ -1122,6 +1162,27 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   });
 }
 
+async function runDockerComposeStart(rl) {
+  section('Start – Docker Compose', '◇');
+  stepReset();
+  step('Starting Docker Compose (App + SQLite)...');
+  await ensureDockerReady();
+  const composeFile = fs.existsSync(path.join(ROOT, 'docker-compose.yml')) ? 'docker-compose.yml' : null;
+  if (!composeFile) {
+    error('docker-compose.yml not found.');
+    process.exit(1);
+  }
+  try {
+    execSync(`docker compose -f ${composeFile} up -d`, { cwd: ROOT, stdio: 'inherit' });
+    success('Docker Compose started.');
+  } catch (e) {
+    error('Docker Compose failed.');
+    process.exit(1);
+  }
+  console.log('');
+  printAppLink('http://localhost:3000', true);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const isDev = args.includes('--dev');
@@ -1133,31 +1194,56 @@ async function main() {
   const isAppOnlySsh = args.includes('--app-only-ssh');
 
   const modes = [isDev, isProd, isOnlyDb, isDbLocal, isAppOnly, isDbOnlySsh, isAppOnlySsh].filter(Boolean);
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
   if (modes.length === 0) {
+    if (!process.stdin.isTTY) {
+      banner();
+      console.log(col('  Usage:', 'bright') + col(' (interactive or with flag)', 'dim'));
+      console.log('');
+      console.log(col('  node scripts/setup.js ', 'dim') + col('--dev', 'cyan') + col('  --prod  ...', ''));
+      console.log('');
+      process.exit(0);
+    }
     banner();
-    console.log(col('  Verwendung:', 'bright') + col(' (SSH optional)', 'dim'));
-    console.log('');
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--dev', 'cyan') + col('           Entwicklung (localhost, SQLite)', ''));
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--prod', 'cyan') + col('          Produktion (App + DB)', ''));
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--db-only', 'cyan') + col('       Nur DB (ohne SSH, direkte Verbindung)', ''));
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--app-only', 'cyan') + col('      Nur App (ohne SSH, direkte DB-Verbindung)', ''));
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--app-only-ssh', 'cyan') + col('  Nur App (via SSH-Tunnel, optional)', ''));
-    console.log('');
-    console.log(col('  DB + SSH:', 'bright') + col(' (optional, für sichere Verbindung)', 'dim'));
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--db-local', 'cyan') + col('      DB + SSH (gleiches Netzwerk)', ''));
-    console.log(col('  ', '') + col('node scripts/setup.js ', 'dim') + col('--db-only-ssh', 'cyan') + col('   DB + Reverse-SSH (Remote via VPS)', ''));
-    console.log('');
-    process.exit(0);
+    const doStart = await askYesNo(rl, 'Start Docker first (docker compose up -d)?', true);
+    if (doStart) {
+      await runDockerComposeStart(rl);
+      console.log('');
+    }
+    const choices = [
+      { label: 'DB only (PostgreSQL)', value: 'db-only' },
+      { label: 'App only (connects to remote DB)', value: 'app-only' },
+      { label: 'DB + SSH (same network)', value: 'db-local' },
+      { label: 'App + SSH (via SSH tunnel)', value: 'app-only-ssh' },
+      { label: 'Exit', value: 'exit' },
+    ];
+    const choice = await askChoice(rl, 'Which setup do you want to run?', choices);
+    if (choice === 'exit') {
+      success('Setup finished.');
+      rl.close();
+      process.exit(0);
+    }
+    try {
+      if (choice === 'dev') await setupDev(rl);
+      else if (choice === 'prod') await setupProd(rl);
+      else if (choice === 'db-only') await setupOnlyDb(rl);
+      else if (choice === 'db-local') await setupDbLocal(rl);
+      else if (choice === 'app-only') await setupAppOnly(rl);
+      else await setupAppOnlySsh(rl);
+    } finally {
+      try { rl.close(); } catch (_) {}
+    }
+    return;
   }
 
   if (modes.length > 1) {
-    error('Gib nur einen Modus an.');
+    error('Specify only one mode.');
     process.exit(1);
   }
 
   banner();
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   try {
     if (isDev) await setupDev(rl);
