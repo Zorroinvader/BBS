@@ -33,12 +33,30 @@ function generateKeyPair() {
   if (fs.existsSync(KEY_PATH)) {
     return { generated: false, keyPath: KEY_PATH };
   }
-  execSync('ssh-keygen', [
-    '-t', 'ed25519',
-    '-f', KEY_PATH,
-    '-N', '',
-    '-C', 'podcast-tunnel',
-  ], { stdio: 'pipe' });
+
+  function runSshKeygen(type, bits = null) {
+    const args = ['-t', type, '-f', KEY_PATH, '-N', '', '-C', 'podcast-tunnel'];
+    if (bits && type === 'rsa') args.splice(2, 0, '-b', String(bits));
+    return execSync('ssh-keygen', args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  }
+
+  try {
+    runSshKeygen('ed25519');
+  } catch (err) {
+    const stderr = (err.stderr || err.message || '').toString();
+    const isEd25519Unsupported = /unknown key type|invalid key type|ed25519/i.test(stderr);
+    if (isEd25519Unsupported) {
+      try {
+        runSshKeygen('rsa', 4096);
+      } catch (rsaErr) {
+        console.error('ssh-keygen (RSA) fehlgeschlagen:', (rsaErr.stderr || rsaErr.message).toString().trim());
+        throw rsaErr;
+      }
+    } else {
+      console.error('ssh-keygen fehlgeschlagen:', stderr.trim() || err.message);
+      throw err;
+    }
+  }
   return { generated: true, keyPath: KEY_PATH };
 }
 
