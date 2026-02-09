@@ -24,56 +24,54 @@ const SSH_KEYGEN_PATHS = [
   'ssh-keygen',
 ];
 
-const PATH_EXTRA = (process.env.PATH || '') + (os.platform() === 'win32'
-  ? ';C:\\Windows\\System32\\OpenSSH;C:\\Program Files\\OpenSSH'
-  : ':/usr/bin:/usr/local/bin:/opt/homebrew/bin');
+const PATH_WITH_SSH = os.platform() === 'win32'
+  ? (process.env.PATH || '') + ';C:\\Windows\\System32\\OpenSSH;C:\\Program Files\\OpenSSH'
+  : '/usr/bin:/usr/local/bin:/opt/homebrew/bin:' + (process.env.PATH || '');
+
+function tryRunSshKeygen(binPath) {
+  if (!fs.existsSync(binPath)) return false;
+  for (const flag of ['-V', '-v']) {
+    try {
+      execSync(binPath, [flag], { stdio: 'pipe', encoding: 'utf8' });
+      return true;
+    } catch (_) {}
+  }
+  return true;
+}
 
 function getSshKeygenPath() {
   if (os.platform() !== 'win32') {
     try {
-      let out = '';
-      try {
-        out = execSync('which', ['ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_EXTRA } }).trim();
-      } catch (_) {
-        out = execSync('sh', ['-c', 'command -v ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_EXTRA } }).trim();
-      }
-      const resolved = out.split('\n')[0]?.trim();
-      if (resolved && fs.existsSync(resolved)) {
-        execSync(resolved, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
-        return resolved;
-      }
+      const out = execSync('sh', ['-c', 'command -v ssh-keygen 2>/dev/null'], {
+        encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_WITH_SSH }
+      }).trim().split('\n')[0]?.trim();
+      if (out && out.startsWith('/') && fs.existsSync(out) && tryRunSshKeygen(out)) return out;
+    } catch (_) {}
+
+    for (const p of SSH_KEYGEN_PATHS) {
+      if (p === 'ssh-keygen') continue;
+      if (fs.existsSync(p) && tryRunSshKeygen(p)) return p;
+    }
+
+    try {
+      execSync('ssh-keygen', ['-V'], { stdio: 'pipe', encoding: 'utf8', env: { ...process.env, PATH: PATH_WITH_SSH } });
+      return 'ssh-keygen';
     } catch (_) {}
   } else {
     try {
-      const out = execSync('where', ['ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_EXTRA } });
+      const out = execSync('where', ['ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_WITH_SSH } });
       const first = out.split(/[\r\n]+/)[0]?.trim();
-      if (first && fs.existsSync(first)) {
-        execSync(first, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
-        return first;
-      }
+      if (first && fs.existsSync(first) && tryRunSshKeygen(first)) return first;
     } catch (_) {}
-  }
 
-  for (const p of SSH_KEYGEN_PATHS) {
-    if (p === 'ssh-keygen' && os.platform() === 'win32') {
-      const winPaths = [
-        'C:\\Windows\\System32\\OpenSSH\\ssh-keygen.exe',
-        path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'OpenSSH', 'ssh-keygen.exe'),
-      ];
-      for (const wp of winPaths) {
-        try {
-          if (fs.existsSync(wp)) {
-            execSync(wp, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
-            return wp;
-          }
-        } catch (_) {}
-      }
-      continue;
+    const winPaths = [
+      path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'OpenSSH', 'ssh-keygen.exe'),
+      'C:\\Windows\\System32\\OpenSSH\\ssh-keygen.exe',
+      'C:\\Program Files\\OpenSSH\\ssh-keygen.exe',
+    ];
+    for (const wp of winPaths) {
+      if (fs.existsSync(wp) && tryRunSshKeygen(wp)) return wp;
     }
-    try {
-      execSync(p, ['-V'], { stdio: 'pipe', encoding: 'utf8', env: { ...process.env, PATH: PATH_EXTRA } });
-      return p;
-    } catch (_) {}
   }
   return null;
 }
@@ -93,7 +91,8 @@ function tryInstallOpenssh() {
     ];
     for (const { cmd, args } of installers) {
       try {
-        execSync(cmd, args.includes('--noconfirm') ? ['-V'] : ['--version'], { stdio: 'pipe' });
+        const verArg = (cmd === 'pacman') ? ['--version'] : (args.includes('--noconfirm') ? ['-V'] : ['--version']);
+        execSync(cmd, verArg, { stdio: 'pipe' });
         console.log('Installiere openssh-client mit ' + cmd + '... (ggf. sudo-Passwort eingeben)');
         execSync('sudo', [cmd, ...args], { stdio: 'inherit' });
         return true;
