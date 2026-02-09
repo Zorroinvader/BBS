@@ -75,11 +75,28 @@ function createCredentialsBundle(dbPassword, vpsHost, vpsUser, dbPort = 5432) {
   };
 }
 
+/** For local (same network): adds key to DB's authorized_keys, App connects via SSH tunnel */
+function createCredentialsBundleLocal(dbPassword, dbHost, dbPort = 5432) {
+  generateKeyPair();
+  const publicKey = fs.readFileSync(PUB_PATH, 'utf8');
+  addToAuthorizedKeys(publicKey);
+  const privateKey = fs.readFileSync(KEY_PATH, 'utf8');
+  const sshUser = os.userInfo().username;
+  return {
+    ssh_host: dbHost,
+    ssh_user: sshUser,
+    ssh_private_key: privateKey,
+    db_password: dbPassword,
+    db_port: dbPort,
+  };
+}
+
 module.exports = {
   generateKeyPair,
   addToAuthorizedKeys,
   getPublicKey,
   createCredentialsBundle,
+  createCredentialsBundleLocal,
   KEY_PATH,
   PUB_PATH,
   SSH_DIR,

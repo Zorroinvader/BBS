@@ -6,12 +6,24 @@
 |-------|--------|--------------|
 | Entwicklung | `--dev` | SQLite, localhost |
 | Produktion | `--prod` | App + DB (Docker) |
-| Nur DB | `--only-db` | PostgreSQL auf DB-Host |
+| Nur DB | `--only-db` | PostgreSQL auf DB-Host (direkte Verbindung) |
+| DB + SSH (lokal) | `--db-local` | DB + SSH für gleiches Netzwerk (empfohlen, sichere Verbindung) |
 | Nur App | `--app-only` | App verbindet direkt zur Remote-DB (gleiches Netzwerk) |
 | DB + Reverse-SSH | `--db-only-ssh` | DB + Reverse-SSH via VPS für Remote-Zugang |
 | App via SSH | `--app-only-ssh` | App verbindet via SSH-Tunnel (VPS oder DB) |
 
 ## Gleiches Netzwerk (DB und App)
+
+### Option A: Mit SSH-Authentifizierung (empfohlen für Sicherheit)
+
+1. **DB-Rechner**: `node scripts/setup.js --db-local`
+   - Startet PostgreSQL
+   - Erzeugt SSH-Schlüssel und `podcast-ssh-credentials.json`
+   - SSH-Server (sshd) wird benötigt
+2. **Credentials übertragen**: Kopiere `podcast-ssh-credentials.json` auf den App-Rechner
+3. **App-Rechner**: `node scripts/setup.js --app-only-ssh` – gib den Pfad zur Credentials-Datei an
+
+### Option B: Direkte Verbindung (einfacher, weniger sicher)
 
 1. **DB-Rechner**: `node scripts/setup.js --only-db`
 2. **App-Rechner**: `node scripts/setup.js --app-only` – gib die lokale IP des DB-Rechners als DB_HOST an.

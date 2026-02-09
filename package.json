@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.js",
     "setup:dev": "node scripts/setup.js --dev",
     "setup:prod": "node scripts/setup.js --prod",
+    "setup:db-local": "node scripts/setup.js --db-local",
     "setup:db-ssh": "node scripts/setup.js --db-only-ssh",
     "setup:app-ssh": "node scripts/setup.js --app-only-ssh"
   },

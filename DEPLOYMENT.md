@@ -2,6 +2,13 @@
 
 ## Gleiches Netzwerk
 
+### Mit SSH (empfohlen für Sicherheit)
+
+- **DB-Rechner**: `node scripts/setup.js --db-local` – startet PostgreSQL, erzeugt SSH-Credentials
+- **App-Rechner**: `node scripts/setup.js --app-only-ssh` mit Credentials-Datei
+
+### Ohne SSH (direkte Verbindung)
+
 - **DB-Rechner**: `node scripts/setup.js --only-db`
 - **App-Rechner**: `node scripts/setup.js --app-only` mit DB_HOST = lokale IP des DB-Rechners
 
