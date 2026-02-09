@@ -1,33 +1,33 @@
 # BBS Podcast Platform – Setup-Anleitung
 
-## Modi
+## Modi (SSH optional)
 
 | Modus | Befehl | Beschreibung |
 |-------|--------|--------------|
 | Entwicklung | `--dev` | SQLite, localhost |
 | Produktion | `--prod` | App + DB (Docker) |
-| Nur DB | `--only-db` | PostgreSQL auf DB-Host (direkte Verbindung) |
+| **DB only** | `--db-only` oder `--only-db` | PostgreSQL auf DB-Host (ohne SSH, direkte Verbindung) |
+| **App only** | `--app-only` | App verbindet direkt zur Remote-DB (ohne SSH) |
+| **App only (SSH)** | `--app-only-ssh` | App verbindet via SSH-Tunnel (optional, für sichere Verbindung) |
 | DB + SSH (lokal) | `--db-local` | DB + SSH für gleiches Netzwerk (empfohlen, sichere Verbindung) |
-| Nur App | `--app-only` | App verbindet direkt zur Remote-DB (gleiches Netzwerk) |
 | DB + Reverse-SSH | `--db-only-ssh` | DB + Reverse-SSH via VPS für Remote-Zugang |
-| App via SSH | `--app-only-ssh` | App verbindet via SSH-Tunnel (VPS oder DB) |
 
 ## Gleiches Netzwerk (DB und App)
 
 ### Option A: Mit SSH-Authentifizierung (empfohlen für Sicherheit)
 
-1. **DB-Rechner**: `node scripts/setup.js --db-local`
+1. **DB-Rechner**: `node scripts/setup.js --db-local` oder `npm run setup:db-local`
    - Startet PostgreSQL
    - Erzeugt SSH-Schlüssel und `podcast-ssh-credentials.json`
    - SSH-Server (sshd) wird benötigt
 2. **Credentials übertragen**: Kopiere `podcast-ssh-credentials.json` auf den App-Rechner  
    - Der Setup zeigt einen SCP-Befehl (vom App-Rechner aus ausführen)
-3. **App-Rechner**: `node scripts/setup.js --app-only-ssh` – gib den Pfad zur Credentials-Datei an
+3. **App-Rechner**: `node scripts/setup.js --app-only-ssh` oder `npm run setup:app-only-ssh` – gib den Pfad zur Credentials-Datei an
 
-### Option B: Direkte Verbindung (einfacher, weniger sicher)
+### Option B: Direkte Verbindung (einfacher, ohne SSH)
 
-1. **DB-Rechner**: `node scripts/setup.js --only-db`
-2. **App-Rechner**: `node scripts/setup.js --app-only` – gib die lokale IP des DB-Rechners als DB_HOST an.
+1. **DB-Rechner**: `node scripts/setup.js --db-only` oder `npm run setup:db-only`
+2. **App-Rechner**: `node scripts/setup.js --app-only` oder `npm run setup:app-only` – gib die lokale IP des DB-Rechners als DB_HOST an.
 
 ## Remote-Zugang (Reverse SSH via VPS)
 

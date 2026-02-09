@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
  * BBS Podcast Platform - Setup Script
- * Usage: node scripts/setup.js --dev | --prod | --only-db | --app-only | --db-only-ssh | --app-only-ssh
- * --db-only-ssh: Reverse-SSH via VPS (remote access)
+ * Usage: node scripts/setup.js --dev | --prod | --db-only | --app-only | --app-only-ssh | ...
+ * --db-only:      DB only (no SSH, direct connection)
+ * --app-only:     App only (no SSH, direct DB connection)
+ * --app-only-ssh: App only via SSH tunnel (optional, for remote/same-network secure access)
  */
 
 const fs = require('fs');
@@ -915,9 +917,9 @@ async function main() {
   const args = process.argv.slice(2);
   const isDev = args.includes('--dev');
   const isProd = args.includes('--prod');
-  const isOnlyDb = args.includes('--only-db');
+  const isOnlyDb = args.includes('--only-db') || args.includes('--db-only');
   const isDbLocal = args.includes('--db-local');
-  const isAppOnly = args.includes('--app-only');
+  const isAppOnly = args.includes('--app-only') && !args.includes('--app-only-ssh');
   const isDbOnlySsh = args.includes('--db-only-ssh');
   const isAppOnlySsh = args.includes('--app-only-ssh');
 
@@ -925,14 +927,16 @@ async function main() {
   if (modes.length === 0) {
     print('BBS Podcast Platform - Setup');
     print('');
-    print('Verwendung:');
+    print('Verwendung (SSH optional):');
     print('  node scripts/setup.js --dev           Entwicklung (localhost, SQLite)');
     print('  node scripts/setup.js --prod          Produktion (App + DB)');
-    print('  node scripts/setup.js --only-db       Nur PostgreSQL (DB-Host, direkte Verbindung)');
-    print('  node scripts/setup.js --db-local      Nur DB + SSH (gleiches Netzwerk, sichere Verbindung)');
-    print('  node scripts/setup.js --app-only      Nur App (direkte DB-Verbindung)');
-    print('  node scripts/setup.js --db-only-ssh   Nur DB + Reverse-SSH (Remote via VPS)');
-    print('  node scripts/setup.js --app-only-ssh  Nur App (via SSH-Tunnel)');
+    print('  node scripts/setup.js --db-only       Nur DB (ohne SSH, direkte Verbindung)');
+    print('  node scripts/setup.js --app-only      Nur App (ohne SSH, direkte DB-Verbindung)');
+    print('  node scripts/setup.js --app-only-ssh  Nur App (via SSH-Tunnel, optional)');
+    print('');
+    print('DB + SSH (optional, für sichere Verbindung):');
+    print('  node scripts/setup.js --db-local      DB + SSH (gleiches Netzwerk)');
+    print('  node scripts/setup.js --db-only-ssh   DB + Reverse-SSH (Remote via VPS)');
     print('');
     process.exit(0);
   }
