@@ -2,6 +2,7 @@
 /**
  * BBS Podcast Platform - Setup Script
  * Usage: node scripts/setup.js --dev | --prod | --only-db | --app-only | --db-only-ssh | --app-only-ssh
+ * --db-only-ssh: Reverse-SSH via VPS (remote access)
  */
 
 const fs = require('fs');
@@ -212,226 +213,7 @@ function getLocalIP() {
   return '127.0.0.1';
 }
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ]);
-}
-
-async function tryPortForward(port) {
-  let lastExtIp = null;
-  const TIMEOUT = 3000;
-  const methods = [
-    ['UPnP (nat-upnp)', async () => {
-      const natUpnp = require('nat-upnp');
-      const client = natUpnp.createClient();
-      return new Promise((resolve) => {
-        const t = setTimeout(() => resolve(null), TIMEOUT);
-        client.portMapping({ public: port, private: port, ttl: 3600 }, (err) => {
-          if (err) { clearTimeout(t); resolve(null); return; }
-          client.externalIp((e, ip) => {
-            clearTimeout(t);
-            if (!e && ip) lastExtIp = ip;
-            resolve(!err);
-          });
-        });
-      });
-    }],
-    ['UPnP (nat-port-mapper)', async () => {
-      try {
-        const { upnpNat } = await import('@achingbrain/nat-port-mapper');
-        const client = upnpNat();
-        for await (const gateway of client.findGateways({ signal: AbortSignal.timeout(TIMEOUT) })) {
-          await withTimeout(gateway.map(port, getLocalIP(), { protocol: 'tcp' }), TIMEOUT);
-          lastExtIp = await gateway.externalIp();
-          await gateway.stop();
-          return true;
-        }
-        return null;
-      } catch (_) {
-        return null;
-      }
-    }],
-    ['NAT-PMP', async () => {
-      try {
-        const { pmpNat } = await import('@achingbrain/nat-port-mapper');
-        const dg = require('default-gateway');
-        const gw = await withTimeout(dg.v4(), TIMEOUT);
-        const gateway = pmpNat(gw.gateway);
-        await withTimeout(gateway.map(port, getLocalIP(), { protocol: 'tcp' }), TIMEOUT);
-        lastExtIp = await gateway.externalIp();
-        await gateway.stop();
-        return true;
-      } catch (_) {
-        return null;
-      }
-    }],
-  ];
-  for (const [name, fn] of methods) {
-    try {
-      print('  Versuche ' + name + '...');
-      const ok = await fn();
-      if (ok) return lastExtIp || (await tryGetExternalIp()) || (await fetchExternalIp());
-    } catch (_) {}
-  }
-  return null;
-}
-
-function tryGetExternalIp() {
-  try {
-    const natUpnp = require('nat-upnp');
-    const client = natUpnp.createClient();
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => resolve(null), 5000);
-      client.externalIp((err, ip) => {
-        clearTimeout(timeout);
-        resolve(err ? null : ip);
-      });
-    });
-  } catch (e) {
-    return Promise.resolve(null);
-  }
-}
-
-async function fetchExternalIp() {
-  return new Promise((resolve) => {
-    const req = http.get('http://api.ipify.org', { timeout: 5000 }, (res) => {
-      let data = '';
-      res.on('data', (ch) => (data += ch));
-      res.on('end', () => resolve(data.trim() || null));
-    });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-  });
-}
-
-function isTailscaleInstalled() {
-  try {
-    execSync('tailscale version', { stdio: 'pipe' });
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-function getTailscaleIp() {
-  try {
-    const out = execSync('tailscale ip -4 -1', { stdio: 'pipe', encoding: 'utf8' });
-    const ip = (out || '').trim();
-    return ip && /^100\.\d+\.\d+\.\d+$/.test(ip) ? ip : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function tryInstallTailscaleStatic() {
-  const archMap = { x64: 'amd64', x86_64: 'amd64', aarch64: 'arm64', arm64: 'arm64', armv7l: 'arm', armv6l: 'arm' };
-  let arch = 'amd64';
-  try {
-    const uname = execSync('uname -m', { encoding: 'utf8' }).trim();
-    arch = archMap[uname] || archMap[os.arch()] || archMap[process.arch] || 'amd64';
-  } catch (_) {
-    arch = archMap[os.arch()] || archMap[process.arch] || 'amd64';
-  }
-  const versions = ['1.94.1', '1.92.5', '1.90.9'];
-  for (const ver of versions) {
-    const url = `https://pkgs.tailscale.com/stable/tailscale_${ver}_${arch}.tgz`;
-    const script = `#!/bin/sh
-set -e
-tmp=$(mktemp -d)
-trap "rm -rf $tmp" EXIT
-curl -fsSL "${url}" -o "$tmp/ts.tgz"
-tar xzf "$tmp/ts.tgz" -C "$tmp"
-dir=$(ls -d $tmp/tailscale_* 2>/dev/null | head -1)
-[ -n "$dir" ] && [ -f "$dir/tailscale" ] && [ -f "$dir/tailscaled" ] || exit 1
-sudo cp "$dir/tailscale" "$dir/tailscaled" /usr/local/bin/ 2>/dev/null || sudo cp "$dir/tailscale" "$dir/tailscaled" /usr/bin/
-if [ -d "$dir/systemd" ] && [ -f "$dir/systemd/tailscaled.service" ] && command -v systemctl >/dev/null 2>&1; then
-  sudo cp "$dir/systemd/tailscaled.service" /etc/systemd/system/ 2>/dev/null || true
-  sudo systemctl daemon-reload 2>/dev/null || true
-  sudo systemctl enable --now tailscaled 2>/dev/null || true
-fi`;
-    const tmpScript = path.join(os.tmpdir(), 'tailscale-install-' + Date.now() + '.sh');
-    try {
-      fs.writeFileSync(tmpScript, script, { mode: 0o700 });
-      execSync(`sh "${tmpScript}"`, { stdio: 'inherit', timeout: 120000 });
-      return isTailscaleInstalled();
-    } catch (_) {
-      // try next version
-    } finally {
-      try { fs.unlinkSync(tmpScript); } catch (_) {}
-    }
-  }
-  return false;
-}
-
-function tryInstallTailscale() {
-  if (isTailscaleInstalled()) return true;
-
-  if (os.platform() === 'win32') {
-    try {
-      print('Installiere Tailscale (kein Port-Forwarding nötig)...');
-      execSync('winget install Tailscale.Tailscale --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
-      return true;
-    } catch (e) {
-      print('Winget fehlgeschlagen. Manuell: https://tailscale.com/download/windows');
-      return false;
-    }
-  }
-  if (os.platform() === 'darwin') {
-    try {
-      print('Installiere Tailscale...');
-      execSync('brew install --cask tailscale', { stdio: 'inherit' });
-      return true;
-    } catch (e) {
-      print('Homebrew fehlgeschlagen. Manuell: https://tailscale.com/download/mac');
-      return false;
-    }
-  }
-  if (os.platform() === 'linux') {
-    const isArch = fs.existsSync('/etc/arch-release');
-    const cmds = isArch
-      ? [
-          ['yay (Arch AUR)', 'yay -S --noconfirm tailscale'],
-          ['paru (Arch AUR)', 'paru -S --noconfirm tailscale'],
-          ['Offizielles Install-Skript', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
-        ]
-      : [
-          ['Offizielles Install-Skript', 'curl -fsSL https://tailscale.com/install.sh | sudo sh'],
-          ['apt (Debian/Ubuntu)', 'sudo apt-get update && sudo apt-get install -y tailscale'],
-          ['dnf (Fedora/RHEL)', 'sudo dnf install -y tailscale'],
-          ['zypper (openSUSE)', 'sudo zypper install -y tailscale'],
-          ['yay (Arch AUR)', 'yay -S --noconfirm tailscale'],
-          ['paru (Arch AUR)', 'paru -S --noconfirm tailscale'],
-        ];
-    for (const [label, cmd] of cmds) {
-      try {
-        print('Installiere Tailscale: ' + label + '...');
-        execSync(cmd, { stdio: 'inherit' });
-        return true;
-      } catch (e) {
-        print('  ' + label + ' fehlgeschlagen.');
-      }
-    }
-    try {
-      print('Installiere Tailscale: Statische Binaries (Fallback)...');
-      if (tryInstallTailscaleStatic()) return true;
-      print('  Statische Binaries fehlgeschlagen.');
-    } catch (e) {
-      print('  Statische Binaries fehlgeschlagen.');
-    }
-    print('');
-    print('Automatische Installation fehlgeschlagen. Bitte manuell installieren:');
-    print('  Arch: yay -S tailscale  oder  paru -S tailscale');
-    print('  Andere: curl -fsSL https://tailscale.com/install.sh | sudo sh');
-    print('  Fallback: https://pkgs.tailscale.com/stable/#static');
-    print('');
-    return false;
-  }
-  return false;
-}
-
-function printTransferFiles(sshHost) {
+function printTransferFiles(sshHost, isVps = false) {
   const credsAbs = path.resolve(CREDS_PATH);
   const rootAbs = path.resolve(ROOT);
   const sshDir = path.join(ROOT, '.ssh');
@@ -446,7 +228,8 @@ function printTransferFiles(sshHost) {
   print('Diese Datei auf den App-Rechner kopieren (USB, SCP, E-Mail, etc.):');
   print('  ' + credsAbs);
   print('');
-  print('Enthält: SSH-Schlüssel, DB_PASSWORD, ssh_host (' + sshHost + '), ssh_user');
+  const hostLabel = isVps ? 'ssh_host (VPS)' : 'ssh_host';
+  print('Enthält: SSH-Schlüssel, DB_PASSWORD, ' + hostLabel + ' (' + sshHost + '), ssh_user');
   print('');
   print('SSH-Schlüssel (falls manuell benötigt):');
   print('  ' + (fs.existsSync(sshKeyPath) ? path.resolve(sshKeyPath) : '(wird in .ssh/ erzeugt)'));
@@ -547,8 +330,8 @@ async function setupOnlyDb(rl) {
 }
 
 async function setupOnlyDbSsh(rl) {
-  print('\n=== Nur PostgreSQL + SSH-Tunnel (DB-Host) ===\n');
-  print('Richtet DB und SSH-Zugang ein, damit die App von überall verbinden kann.\n');
+  print('\n=== Nur PostgreSQL + Reverse-SSH (DB-Host, Remote-Zugang via VPS) ===\n');
+  print('Richtet DB und Reverse-SSH-Tunnel ein. Benötigt einen VPS mit öffentlicher IP.\n');
 
   print('Installiere Abhängigkeiten...');
   try {
@@ -564,6 +347,14 @@ async function setupOnlyDbSsh(rl) {
 
   if (!dbPassword) {
     print('\nFehler: DB_PASSWORD ist erforderlich.\n');
+    process.exit(1);
+  }
+
+  const vpsHost = await ask(rl, 'VPS_HOST (Hostname oder IP des VPS)', '');
+  const vpsUser = await ask(rl, 'VPS_USER (SSH-Benutzer auf dem VPS)', os.userInfo().username);
+
+  if (!vpsHost || !vpsUser) {
+    print('\nFehler: VPS_HOST und VPS_USER sind erforderlich.\n');
     process.exit(1);
   }
 
@@ -587,85 +378,14 @@ async function setupOnlyDbSsh(rl) {
   runDockerComposeWithRetry('docker-compose.db-only.yml', ['up -d']);
   print('PostgreSQL läuft.\n');
 
-  print('Prüfe SSH-Server...');
-  let sshOk = false;
-  try {
-    if (os.platform() === 'win32') {
-      execSync('where sshd', { stdio: 'pipe' });
-      sshOk = true;
-    } else {
-      execSync('which sshd', { stdio: 'pipe' });
-      sshOk = true;
-    }
-  } catch (_) {}
-  if (!sshOk) {
-    print('\nHinweis: SSH-Server (sshd) nicht gefunden.');
-    if (os.platform() === 'linux') {
-      print('Installieren: sudo apt install openssh-server');
-    } else if (os.platform() === 'win32') {
-      print('Windows: OpenSSH-Server als optionales Feature aktivieren.');
-    }
-    print('Fahre trotzdem fort – du kannst später SSH einrichten.\n');
-  }
-
-  const { createCredentialsBundle } = require('./ssh-credentials');
-  const localIp = getLocalIP();
-
+  const { createCredentialsBundle, getPublicKey } = require('./ssh-credentials');
   print('Erstelle SSH-Schlüssel und Credentials...');
-  let sshHost = localIp;
-
-  print('Versuche Portweiterleitung (Port 22)...');
-  let portForwardOk = false;
-  try {
-    const extIp = await tryPortForward(22);
-    if (extIp) {
-      sshHost = extIp;
-      portForwardOk = true;
-      print('Port 22 weitergeleitet. Öffentliche IP: ' + sshHost);
-    } else {
-      print('Alle Port-Forwarding-Methoden fehlgeschlagen.');
-    }
-  } catch (e) {
-    print('Port-Forwarding fehlgeschlagen: ' + (e.message || e));
-  }
-
-  if (!portForwardOk) {
-    print('\nPort-Forwarding fehlgeschlagen. Wechsle automatisch zu Tailscale (kein Port-Forwarding nötig)...\n');
-    let tailscaleIp = getTailscaleIp();
-    if (tailscaleIp) {
-      sshHost = tailscaleIp;
-      print('Tailscale bereits verbunden. SSH-Host: ' + sshHost);
-    } else if (!isTailscaleInstalled()) {
-      print('Installiere Tailscale...');
-      tryInstallTailscale();
-      const fallback = await fetchExternalIp();
-      if (fallback) sshHost = fallback;
-      if (isTailscaleInstalled()) {
-        print('Tailscale wurde installiert. Starte es (Startmenü bzw. sudo tailscale up) und melde dich an.');
-        print('Skript erneut ausführen für Tailscale-IP in den Credentials.');
-      } else {
-        print('Tailscale-Installation fehlgeschlagen oder abgebrochen.');
-        print('Alternativ: Tailscale manuell installieren oder Port 22 am Router weiterleiten.');
-      }
-    } else {
-      print('Tailscale ist installiert, aber nicht verbunden.');
-      print('Starte Tailscale: ' + (os.platform() === 'win32' ? 'Tailscale aus Startmenü starten' : 'sudo tailscale up'));
-      print('Dann Skript erneut ausführen. Verwende vorläufig öffentliche IP.');
-      const fallback = await fetchExternalIp();
-      if (fallback) sshHost = fallback;
-    }
-  }
-
-  const bundle = createCredentialsBundle(dbPassword, sshHost, 5432);
+  const bundle = createCredentialsBundle(dbPassword, vpsHost, vpsUser, 5432);
   fs.writeFileSync(CREDS_PATH, JSON.stringify(bundle, null, 2), { mode: 0o600 });
 
-  printTransferFiles(sshHost);
+  printTransferFiles(vpsHost, true);
+  printReverseSshInstructions(vpsHost, vpsUser, getPublicKey());
 
-  print('Nächste Schritte:');
-  print('1. Kopiere die Credentials-Datei (siehe oben) auf den App-Rechner');
-  print('2. Auf dem App-Rechner: node scripts/setup.js --app-only-ssh');
-  print('3. Gib den Pfad zur Datei an.');
-  print('');
   print('Starte Live DB-Log... (Strg+C zum Beenden)\n');
   rl.close();
   const child = spawn(process.execPath, [path.join(__dirname, 'db-log-viewer.js')], {
@@ -673,6 +393,38 @@ async function setupOnlyDbSsh(rl) {
     stdio: 'inherit',
   });
   child.on('close', (code) => process.exit(code ?? 0));
+}
+
+function printReverseSshInstructions(vpsHost, vpsUser, publicKey) {
+  const credsAbs = path.resolve(CREDS_PATH);
+  const reverseCmd = `autossh -M 0 -o "ServerAliveInterval=30" -o "ServerAliveCountMax=3" -R 5432:localhost:5432 -i "${path.join(ROOT, '.ssh', 'podcast_tunnel')}" -N ${vpsUser}@${vpsHost}`;
+  const sshCmd = `ssh -R 5432:localhost:5432 -o ServerAliveInterval=30 -i "${path.join(ROOT, '.ssh', 'podcast_tunnel')}" -N ${vpsUser}@${vpsHost}`;
+
+  print('');
+  print('=== NÄCHSTE SCHRITTE (manuell ausführen) ===');
+  print('');
+  print('1. Auf dem VPS: Füge den öffentlichen Schlüssel zu ~/.ssh/authorized_keys hinzu:');
+  print('');
+  print('   ' + publicKey);
+  print('');
+  print('2. Auf dem DB-Rechner: Starte den Reverse-SSH-Tunnel (läuft im Hintergrund):');
+  print('');
+  print('   Mit autossh (empfohlen, hält Verbindung automatisch):');
+  print('   ' + reverseCmd);
+  print('');
+  print('   Oder mit ssh (falls autossh nicht installiert):');
+  print('   ' + sshCmd);
+  print('');
+  print('   Oder: node scripts/reverse-ssh-tunnel.js');
+  print('');
+  print('3. Kopiere die Credentials-Datei auf den App-Rechner:');
+  print('   ' + credsAbs);
+  print('');
+  print('4. Auf dem App-Rechner: node scripts/setup.js --app-only-ssh');
+  print('   Gib den Pfad zur Credentials-Datei an.');
+  print('');
+  print('=== ENDE ===');
+  print('');
 }
 
 async function setupAppOnly(rl) {
@@ -745,9 +497,14 @@ async function setupAppOnlySsh(rl) {
     }
   }
 
+  if (bundle) {
+    bundle.ssh_host = bundle.ssh_host || bundle.vps_host;
+    bundle.ssh_user = bundle.ssh_user || bundle.vps_user;
+  }
+
   if (!bundle) {
     print('Manuelle Eingabe:\n');
-    const sshHost = await ask(rl, 'SSH_HOST (IP oder Hostname des DB-Rechners)', '');
+    const sshHost = await ask(rl, 'SSH_HOST (VPS bei Remote, DB-IP bei gleichem Netzwerk)', '');
     const sshUser = await ask(rl, 'SSH_USER', os.userInfo().username);
     let keyPath = await ask(rl, 'Pfad zum privaten SSH-Schlüssel', '');
     keyPath = keyPath.replace(/^["'\s]+|["'\s]+$/g, '').trim();

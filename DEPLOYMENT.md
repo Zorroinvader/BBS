@@ -1,26 +1,36 @@
 # Remote-DB-Verbindung
 
-## SSH-Tunnel (--db-only-ssh / --app-only-ssh)
+## Gleiches Netzwerk
 
-Die einfachste Methode für Verbindungen aus anderen Netzwerken:
+- **DB-Rechner**: `node scripts/setup.js --only-db`
+- **App-Rechner**: `node scripts/setup.js --app-only` mit DB_HOST = lokale IP des DB-Rechners
+
+## Remote-Zugang (Reverse SSH via VPS)
+
+Für Verbindungen aus anderen Netzwerken nutzt das Setup einen **Reverse-SSH-Tunnel** über einen VPS. Kein Port-Forwarding oder Tailscale erforderlich.
 
 1. **DB-Rechner**: `node scripts/setup.js --db-only-ssh`
-   - Startet PostgreSQL und erstellt SSH-Credentials
-   - Versucht Portweiterleitung nacheinander: UPnP, NAT-PMP (funktioniert mit vielen Routern)
-   - **Falls Port-Forwarding fehlschlägt:** installiert automatisch Tailscale (mehrere Methoden für Linux: apt, dnf, zypper, pacman, Install-Skript)
-   - Erzeugt `podcast-ssh-credentials.json` im Projektverzeichnis
-   - **Dateien für Übertragung:** Das Skript zeigt den vollständigen Pfad – z.B. `C:\Users\...\BBS\podcast-ssh-credentials.json`
+   - Startet PostgreSQL
+   - Fragt nach VPS_HOST und VPS_USER
+   - Erzeugt `podcast-ssh-credentials.json`
 
-2. **Credentials übertragen**: Kopiere die Datei auf den App-Rechner
+2. **VPS**: Füge den angezeigten öffentlichen SSH-Schlüssel zu `~/.ssh/authorized_keys` hinzu.
 
-3. **App-Rechner**: `node scripts/setup.js --app-only-ssh`
-   - Gib den Pfad zu `podcast-ssh-credentials.json` an
-   - Verbindet via SSH-Tunnel
+3. **DB-Rechner**: Starte den Reverse-Tunnel:
+   - `node scripts/reverse-ssh-tunnel.js`
+   - Oder systemd: siehe `scripts/podcast-reverse-ssh.service.example`
 
-### Falls die Verbindung nicht funktioniert
+4. **Credentials übertragen**: Kopiere `podcast-ssh-credentials.json` auf den App-Rechner
 
-- **UPnP fehlgeschlagen**: Viele Router unterstützen UPnP nicht oder es ist deaktiviert. Richte Port 22 am Router manuell auf den DB-Rechner weiter.
+5. **App-Rechner**: `node scripts/setup.js --app-only-ssh` – gib den Pfad zur Credentials-Datei an
 
-- **Tailscale**: Installiere Tailscale auf beiden Rechnern. Nutze die Tailscale-IP des DB-Rechners als `ssh_host` (statt der öffentlichen IP). Kein Port-Forwarding nötig.
+### Reverse-Tunnel als systemd-Service
 
-- **Firewall**: Stelle sicher, dass der DB-Rechner SSH (Port 22) akzeptiert.
+```bash
+# Beispiel anpassen und kopieren
+sudo cp scripts/podcast-reverse-ssh.service.example /etc/systemd/system/podcast-reverse-ssh.service
+sudo nano /etc/systemd/system/podcast-reverse-ssh.service  # User und Pfade anpassen
+sudo systemctl daemon-reload
+sudo systemctl enable podcast-reverse-ssh
+sudo systemctl start podcast-reverse-ssh
+```

@@ -7,13 +7,18 @@
 | Entwicklung | `--dev` | SQLite, localhost |
 | Produktion | `--prod` | App + DB (Docker) |
 | Nur DB | `--only-db` | PostgreSQL auf DB-Host |
-| Nur App | `--app-only` | App verbindet direkt zur Remote-DB |
-| DB + SSH | `--db-only-ssh` | DB + SSH-Credentials für Remote-Zugang |
-| App via SSH | `--app-only-ssh` | App verbindet via SSH-Tunnel (funktioniert überall) |
+| Nur App | `--app-only` | App verbindet direkt zur Remote-DB (gleiches Netzwerk) |
+| DB + Reverse-SSH | `--db-only-ssh` | DB + Reverse-SSH via VPS für Remote-Zugang |
+| App via SSH | `--app-only-ssh` | App verbindet via SSH-Tunnel (VPS oder DB) |
 
-## SSH-Tunnel (App und DB nicht im gleichen Netzwerk)
+## Gleiches Netzwerk (DB und App)
 
-Für Verbindung über verschiedene Netzwerke hinweg:
+1. **DB-Rechner**: `node scripts/setup.js --only-db`
+2. **App-Rechner**: `node scripts/setup.js --app-only` – gib die lokale IP des DB-Rechners als DB_HOST an.
+
+## Remote-Zugang (Reverse SSH via VPS)
+
+Für Verbindung aus anderen Netzwerken benötigst du einen VPS mit öffentlicher IP.
 
 ### 1. Auf dem DB-Rechner
 
@@ -22,26 +27,34 @@ node scripts/setup.js --db-only-ssh
 ```
 
 - Startet PostgreSQL
-- Erzeugt SSH-Schlüssel
-- Versucht UPnP-Portweiterleitung (Port 22)
-- **Falls UPnP fehlschlägt:** installiert automatisch Tailscale (kein Port-Forwarding nötig)
-- Erstellt `podcast-ssh-credentials.json` im Projektverzeichnis
+- Fragt nach VPS_HOST und VPS_USER
+- Erzeugt SSH-Schlüssel und `podcast-ssh-credentials.json`
 
-**Dateien für Übertragung:** Das Skript zeigt dir den vollständigen Pfad zur Credentials-Datei.
+### 2. Manuell: Auf dem VPS
 
-### 2. Credentials übertragen
+Füge den angezeigten öffentlichen Schlüssel zu `~/.ssh/authorized_keys` auf dem VPS hinzu.
+
+### 3. Manuell: Auf dem DB-Rechner
+
+Starte den Reverse-SSH-Tunnel (z.B. im Hintergrund oder als systemd-Service):
+
+```bash
+node scripts/reverse-ssh-tunnel.js
+```
+
+Oder mit autossh: `autossh -M 0 -o ServerAliveInterval=30 -R 5432:localhost:5432 -i .ssh/podcast_tunnel -N VPS_USER@VPS_HOST`
+
+### 4. Credentials übertragen
 
 Kopiere `podcast-ssh-credentials.json` auf den App-Rechner (USB, SCP, etc.).
 
-### 3. Auf dem App-Rechner
+### 5. Auf dem App-Rechner
 
 ```bash
 node scripts/setup.js --app-only-ssh
 ```
 
 - Gib den Pfad zu `podcast-ssh-credentials.json` an
-- Startet SSH-Tunnel und App
-
-Falls UPnP fehlschlägt: Nutze Tailscale auf beiden Rechnern und die Tailscale-IP als `ssh_host`, oder richte Port 22 manuell am Router weiter.
+- Startet SSH-Tunnel zur VPS und App
 
 Siehe [DEPLOYMENT.md](DEPLOYMENT.md) für Details.

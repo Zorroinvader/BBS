@@ -13,9 +13,6 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
-    "nat-upnp": "^1.1.1",
-    "@achingbrain/nat-port-mapper": "^4.0.2",
-    "default-gateway": "^6.0.0",
     "pg": "^8.13.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

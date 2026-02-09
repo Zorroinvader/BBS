@@ -1,0 +1,28 @@
+# Example systemd unit for the BBS Podcast reverse SSH tunnel.
+# Copy to /etc/systemd/system/podcast-reverse-ssh.service and edit paths.
+#
+# Installation:
+#   sudo cp podcast-reverse-ssh.service.example /etc/systemd/system/podcast-reverse-ssh.service
+#   sudo nano /etc/systemd/system/podcast-reverse-ssh.service   # edit User and paths
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable podcast-reverse-ssh
+#   sudo systemctl start podcast-reverse-ssh
+
+[Unit]
+Description=BBS Podcast Reverse SSH Tunnel (DB -> VPS)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/BBS
+ExecStart=/usr/bin/node /path/to/BBS/scripts/reverse-ssh-tunnel.js
+Restart=always
+RestartSec=10
+
+# Alternative: use autossh directly (more robust)
+# ExecStart=/usr/bin/autossh -M 0 -N -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R 5432:localhost:5432 -i /path/to/BBS/.ssh/podcast_tunnel VPS_USER@VPS_HOST
+
+[Install]
+WantedBy=multi-user.target

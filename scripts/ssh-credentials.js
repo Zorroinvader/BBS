@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * SSH credentials for podcast tunnel.
- * Generates key pair and adds to authorized_keys with restrict,permitopen.
+ * For remote (VPS): generates key pair, user adds public key to VPS.
+ * For local: generates key pair, adds to local authorized_keys.
  */
 
 const fs = require('fs');
@@ -39,6 +40,11 @@ function generateKeyPair() {
   return { generated: true, keyPath: KEY_PATH };
 }
 
+function getPublicKey() {
+  generateKeyPair();
+  return fs.existsSync(PUB_PATH) ? fs.readFileSync(PUB_PATH, 'utf8').trim() : '';
+}
+
 function addToAuthorizedKeys(publicKey) {
   const authPath = getAuthorizedKeysPath();
   const authDir = path.dirname(authPath);
@@ -54,15 +60,15 @@ function addToAuthorizedKeys(publicKey) {
   fs.writeFileSync(authPath, content, { mode: 0o600 });
 }
 
-function createCredentialsBundle(dbPassword, sshHost, dbPort = 5432) {
-  const { keyPath } = generateKeyPair();
-  const publicKey = fs.readFileSync(PUB_PATH, 'utf8');
-  addToAuthorizedKeys(publicKey);
+/** For remote (VPS reverse SSH): no local authorized_keys, user adds key to VPS */
+function createCredentialsBundle(dbPassword, vpsHost, vpsUser, dbPort = 5432) {
+  generateKeyPair();
   const privateKey = fs.readFileSync(KEY_PATH, 'utf8');
-  const sshUser = os.userInfo().username;
   return {
-    ssh_host: sshHost,
-    ssh_user: sshUser,
+    vps_host: vpsHost,
+    vps_user: vpsUser,
+    ssh_host: vpsHost,
+    ssh_user: vpsUser,
     ssh_private_key: privateKey,
     db_password: dbPassword,
     db_port: dbPort,
@@ -72,6 +78,7 @@ function createCredentialsBundle(dbPassword, sshHost, dbPort = 5432) {
 module.exports = {
   generateKeyPair,
   addToAuthorizedKeys,
+  getPublicKey,
   createCredentialsBundle,
   KEY_PATH,
   PUB_PATH,

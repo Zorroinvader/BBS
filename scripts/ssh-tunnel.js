@@ -2,6 +2,7 @@
 /**
  * SSH tunnel for remote DB connection.
  * Forwards local port to remote PostgreSQL.
+ * Host: VPS (when using reverse SSH) or DB IP (when on same network).
  * Usage: node scripts/ssh-tunnel.js --host HOST --user USER --key PATH [--local-port 5433] [--remote-port 5432]
  */
 
@@ -28,6 +29,7 @@ function runTunnel(opts) {
   const { host, user, key, localPort, remotePort } = opts;
   if (!host || !user || !key) {
     console.error('Usage: node ssh-tunnel.js --host HOST --user USER --key KEY_PATH [--local-port 5433] [--remote-port 5432]');
+    console.error('  HOST: VPS hostname (remote) or DB IP (same network)');
     process.exit(1);
   }
   if (!fs.existsSync(key)) {
