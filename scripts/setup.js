@@ -683,7 +683,7 @@ async function setupAppOnlySsh(rl) {
     }
   }
 
-  const privateKey = bundle.ssh_private_key;
+  let privateKey = bundle.ssh_private_key;
   if (!privateKey || !privateKey.includes('-----BEGIN') || !privateKey.includes('-----END')) {
     print('');
     print('Fehler: Ungültiger SSH-Privat Schlüssel in den Credentials.');
@@ -692,6 +692,10 @@ async function setupAppOnlySsh(rl) {
     print('');
     process.exit(1);
   }
+  if (typeof privateKey === 'string' && privateKey.includes('\\n') && !privateKey.includes('\n')) {
+    privateKey = privateKey.replace(/\\n/g, '\n');
+  }
+  if (!privateKey.endsWith('\n')) privateKey += '\n';
 
   const sshDir = path.join(ROOT, '.ssh');
   if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { mode: 0o700 });
@@ -699,6 +703,22 @@ async function setupAppOnlySsh(rl) {
   fs.writeFileSync(keyPath, privateKey, { mode: 0o600 });
   if (os.platform() !== 'win32') {
     try { fs.chmodSync(keyPath, 0o600); } catch (_) {}
+  }
+  print('SSH-Schlüssel aus Credentials in ' + path.resolve(keyPath) + ' geschrieben.');
+
+  let pubKeyForDb = (bundle.ssh_public_key || '').replace(/\s+/g, ' ').trim();
+  if (!pubKeyForDb) {
+    const pubPath = path.join(ROOT, '.ssh', 'podcast_tunnel.pub');
+    if (fs.existsSync(pubPath)) pubKeyForDb = fs.readFileSync(pubPath, 'utf8').replace(/\s+/g, ' ').trim();
+  }
+  if (pubKeyForDb) {
+    print('');
+    print('Wichtig: Auf dem DB-Rechner (' + bundle.ssh_host + ') muss genau dieser öffentliche Schlüssel');
+    print('(aus derselben Credentials-Datei) in ~/.ssh/authorized_keys stehen (Benutzer: ' + bundle.ssh_user + ').');
+    print('Falls noch nicht geschehen, auf dem DB-Rechner ausführen:');
+    print('');
+    print('  echo "' + pubKeyForDb + '" >> ~/.ssh/authorized_keys');
+    print('');
   }
 
   const envContent = loadEnv();
@@ -770,39 +790,31 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 
   let tunnelReady = false;
   tunnel.on('close', (code, signal) => {
-    if (!tunnelReady) return;
-    if (code !== 0) print('\nSSH-Tunnel wurde beendet (Code: ' + code + ').');
+    if (tunnelReady && code !== 0) print('\nSSH-Tunnel wurde beendet (Code: ' + code + ').');
   });
 
-  await new Promise((r) => setTimeout(r, 2500));
+  await new Promise((r) => setTimeout(r, 5000));
   if (tunnel.killed || !tunnel.connected || (tunnel.exitCode != null && tunnel.exitCode !== 0)) {
     print('');
     print('SSH-Tunnel konnte nicht gestartet werden.');
-    const isPermissionDenied = /Permission denied|publickey|password/i.test(stderrBuf);
-    if (isPermissionDenied) {
+    if (stderrBuf.trim()) print('SSH-Ausgabe: ' + stderrBuf.trim());
+    print('');
+    print('Der öffentliche Schlüssel aus deiner Credentials-Datei muss auf dem DB-Rechner in');
+    print('  ~/.ssh/authorized_keys  (Benutzer: ' + bundle.ssh_user + ')');
+    print('stehen. Auf dem DB-Rechner (' + bundle.ssh_host + ') ausführen:');
+    print('');
+    if (pubKeyForDb) {
+      print('  echo "' + pubKeyForDb + '" >> ~/.ssh/authorized_keys');
       print('');
-      print('Authentifizierung fehlgeschlagen. Der öffentliche Schlüssel muss auf dem DB-Rechner in');
-      print('  ~/.ssh/authorized_keys  (Benutzer: ' + bundle.ssh_user + ')');
-      print('stehen. Auf dem DB-Rechner (' + bundle.ssh_host + '):');
+      print('Dann erneut: node scripts/setup.js --app-only-ssh  (gleiche Credentials-Datei angeben).');
+    } else {
+      print('  (Kein öffentlicher Schlüssel in Credentials – auf dem DB-Rechner: node scripts/setup.js --db-local)');
       print('');
-      let pubKey = (bundle.ssh_public_key || '').replace(/\s+/g, ' ').trim();
-      if (!pubKey) {
-        const pubPath = path.join(ROOT, '.ssh', 'podcast_tunnel.pub');
-        if (fs.existsSync(pubPath)) pubKey = fs.readFileSync(pubPath, 'utf8').replace(/\s+/g, ' ').trim();
-      }
-      if (pubKey) {
-        print('  echo "' + pubKey + '" >> ~/.ssh/authorized_keys');
-        print('');
-      }
-      print('  Oder: node scripts/setup.js --db-local  erneut auf dem DB-Rechner ausführen.');
-      print('');
+      print('Dann die neue podcast-ssh-credentials.json auf diesen Rechner kopieren und --app-only-ssh erneut ausführen.');
     }
-    print('Mögliche Ursachen:');
-    if (!isPermissionDenied) {
-      print('  - Host ' + bundle.ssh_host + ' nicht erreichbar (Netzwerk, Firewall?)');
-      print('  - Bei Remote: Läuft der Reverse-Tunnel auf dem DB-Rechner?');
-    }
-    print('  - Schlüssel: Wurde --db-local auf dem DB-Rechner ausgeführt?');
+    print('');
+    print('Weitere Hinweise:');
+    print('  - Schlüssel: Genau dieser Schlüssel (siehe oben) muss auf dem DB-Rechner stehen.');
     print('  - Benutzer: Stimmt ' + bundle.ssh_user + ' mit dem Linux-User auf dem DB-Rechner?');
     print('  - Test: ssh -i "' + keyPath + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
     process.exit(1);
