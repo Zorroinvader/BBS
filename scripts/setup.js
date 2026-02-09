@@ -743,7 +743,7 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   print('  Host erreichbar.');
 
   print('\nStarte SSH-Tunnel zu ' + bundle.ssh_host + '...');
-  const tunnel = spawn('ssh', [
+  let tunnel = spawn('ssh', [
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
@@ -772,25 +772,70 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   });
 
   await new Promise((r) => setTimeout(r, 2500));
-  if (tunnel.killed || !tunnel.connected || (tunnel.exitCode != null && tunnel.exitCode !== 0)) {
+  let tunnelFailed = tunnel.killed || !tunnel.connected || (tunnel.exitCode != null && tunnel.exitCode !== 0);
+  let isPermissionDenied = tunnelFailed && /Permission denied|publickey|password/i.test(stderrBuf);
+  let pubKey = bundle.ssh_public_key;
+  if (!pubKey) {
+    const pubPath = path.join(ROOT, '.ssh', 'podcast_tunnel.pub');
+    if (fs.existsSync(pubPath)) pubKey = fs.readFileSync(pubPath, 'utf8').trim();
+  }
+
+  if (tunnelFailed && isPermissionDenied && pubKey) {
+    try { tunnel.kill('SIGTERM'); } catch (_) {}
+    print('');
+    const addViaPw = await ask(rl, 'Schlüssel per Passwort-Anmeldung auf DB-Rechner hinzufügen? (j/n)', 'j');
+    if (/^j|^y|^ja|^yes$/i.test((addViaPw || 'j').trim())) {
+      print('');
+      print('Verbinde zu ' + bundle.ssh_host + ' (Passwort eingeben wenn gefragt)...');
+      const keyB64 = Buffer.from(pubKey, 'utf8').toString('base64');
+      const remoteCmd = "mkdir -p ~/.ssh && chmod 700 ~/.ssh && { echo " + keyB64 + " | base64 -d; echo; } >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && echo OK";
+      try {
+        execSync('ssh', [
+          '-o', 'PreferredAuthentications=password,keyboard-interactive',
+          '-o', 'PubkeyAuthentication=no',
+          '-o', 'BatchMode=no',
+          '-o', 'StrictHostKeyChecking=accept-new',
+          '-o', 'ConnectTimeout=15',
+          bundle.ssh_user + '@' + bundle.ssh_host,
+          remoteCmd,
+        ], { stdio: 'inherit' });
+        print('');
+        print('Schlüssel hinzugefügt. Starte SSH-Tunnel erneut...');
+        tunnel = spawn('ssh', [
+          '-o', 'StrictHostKeyChecking=accept-new',
+          '-o', 'BatchMode=yes',
+          '-o', 'ConnectTimeout=10',
+          '-L', `${localPort}:localhost:${bundle.db_port || 5432}`,
+          '-i', keyPath,
+          '-N',
+          `${bundle.ssh_user}@${bundle.ssh_host}`,
+        ], { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT });
+        tunnel.stderr.on('data', (ch) => process.stderr.write(ch));
+        tunnel.on('close', (code) => { if (tunnelReady && code !== 0) print('\nSSH-Tunnel beendet.'); });
+        await new Promise((r) => setTimeout(r, 2500));
+        if (tunnel.connected && (tunnel.exitCode == null || tunnel.exitCode === 0)) {
+          tunnelReady = true;
+          tunnelFailed = false;
+          print('SSH-Tunnel läuft.\n');
+        }
+      } catch (e) {
+        print('\nPasswort-Anmeldung fehlgeschlagen oder abgebrochen.');
+        print('Hinweis: Auf dem DB-Rechner muss PasswordAuthentication in /etc/ssh/sshd_config aktiv sein.');
+      }
+    }
+  }
+
+  if (tunnelFailed) {
     print('');
     print('SSH-Tunnel konnte nicht gestartet werden.');
-    const isPermissionDenied = /Permission denied|publickey|password/i.test(stderrBuf);
     if (isPermissionDenied) {
       print('');
       print('Authentifizierung fehlgeschlagen. Der öffentliche Schlüssel muss auf dem DB-Rechner in');
       print('  ~/.ssh/authorized_keys  (Benutzer: ' + bundle.ssh_user + ')');
       print('stehen. Auf dem DB-Rechner (' + bundle.ssh_host + '):');
       print('');
-      let pubKey = bundle.ssh_public_key;
-      if (!pubKey) {
-        const pubPath = path.join(ROOT, '.ssh', 'podcast_tunnel.pub');
-        if (fs.existsSync(pubPath)) pubKey = fs.readFileSync(pubPath, 'utf8').trim();
-      }
-      if (pubKey) {
-        print('  echo "' + pubKey + '" >> ~/.ssh/authorized_keys');
-        print('');
-      }
+      if (pubKey) print('  echo "' + pubKey + '" >> ~/.ssh/authorized_keys');
+      print('');
       print('  Oder: node scripts/setup.js --db-local  erneut auf dem DB-Rechner ausführen.');
       print('');
     }
@@ -804,8 +849,11 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
     print('  - Test: ssh -i "' + keyPath + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
     process.exit(1);
   }
-  tunnelReady = true;
-  print('SSH-Tunnel läuft.\n');
+
+  if (!tunnelReady) {
+    tunnelReady = true;
+    print('SSH-Tunnel läuft.\n');
+  }
 
   try {
     execSync('npm install', { cwd: ROOT, stdio: 'inherit' });
