@@ -20,13 +20,58 @@ const AUTH_KEYS_ENTRY = 'restrict,permitopen="localhost:5432"';
 const SSH_KEYGEN_PATHS = [
   '/usr/bin/ssh-keygen',
   '/usr/local/bin/ssh-keygen',
+  '/opt/homebrew/bin/ssh-keygen',
   'ssh-keygen',
 ];
 
+const PATH_EXTRA = (process.env.PATH || '') + (os.platform() === 'win32'
+  ? ';C:\\Windows\\System32\\OpenSSH;C:\\Program Files\\OpenSSH'
+  : ':/usr/bin:/usr/local/bin:/opt/homebrew/bin');
+
 function getSshKeygenPath() {
-  for (const p of SSH_KEYGEN_PATHS) {
+  if (os.platform() !== 'win32') {
     try {
-      execSync(p, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
+      let out = '';
+      try {
+        out = execSync('which', ['ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_EXTRA } }).trim();
+      } catch (_) {
+        out = execSync('sh', ['-c', 'command -v ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_EXTRA } }).trim();
+      }
+      const resolved = out.split('\n')[0]?.trim();
+      if (resolved && fs.existsSync(resolved)) {
+        execSync(resolved, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
+        return resolved;
+      }
+    } catch (_) {}
+  } else {
+    try {
+      const out = execSync('where', ['ssh-keygen'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, PATH: PATH_EXTRA } });
+      const first = out.split(/[\r\n]+/)[0]?.trim();
+      if (first && fs.existsSync(first)) {
+        execSync(first, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
+        return first;
+      }
+    } catch (_) {}
+  }
+
+  for (const p of SSH_KEYGEN_PATHS) {
+    if (p === 'ssh-keygen' && os.platform() === 'win32') {
+      const winPaths = [
+        'C:\\Windows\\System32\\OpenSSH\\ssh-keygen.exe',
+        path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'OpenSSH', 'ssh-keygen.exe'),
+      ];
+      for (const wp of winPaths) {
+        try {
+          if (fs.existsSync(wp)) {
+            execSync(wp, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
+            return wp;
+          }
+        } catch (_) {}
+      }
+      continue;
+    }
+    try {
+      execSync(p, ['-V'], { stdio: 'pipe', encoding: 'utf8', env: { ...process.env, PATH: PATH_EXTRA } });
       return p;
     } catch (_) {}
   }
