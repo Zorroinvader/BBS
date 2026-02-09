@@ -148,7 +148,30 @@ function ensureSshDir() {
 
 function getAuthorizedKeysPath() {
   const home = os.homedir();
-  return path.join(home, '.ssh', 'authorized_keys');
+  const sshDir = path.join(home, '.ssh');
+  return path.join(sshDir, 'authorized_keys');
+}
+
+/** Normalize public key line: trim, ensure single line (no newlines in middle) */
+function normalizePublicKeyLine(key) {
+  if (!key || typeof key !== 'string') return '';
+  return key.replace(/\s+/g, ' ').trim();
+}
+
+/** Check if this exact key (by key data) is already in authorized_keys content */
+function authorizedKeysContainsKey(existingContent, publicKey) {
+  const normalized = normalizePublicKeyLine(publicKey);
+  if (!normalized) return false;
+  const keyData = normalized.split(/\s+/)[1];
+  if (!keyData) return false;
+  const lines = existingContent.split('\n').map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const parts = line.split(/\s+/);
+    for (let i = 1; i < parts.length; i++) {
+      if (parts[i] === keyData) return true;
+    }
+  }
+  return false;
 }
 
 function generateKeyPair() {
@@ -190,18 +213,30 @@ function getPublicKey() {
 }
 
 function addToAuthorizedKeys(publicKey) {
+  const normalized = normalizePublicKeyLine(publicKey);
+  if (!normalized) return;
+
   const authPath = getAuthorizedKeysPath();
   const authDir = path.dirname(authPath);
+
   if (!fs.existsSync(authDir)) {
     fs.mkdirSync(authDir, { mode: 0o700, recursive: true });
   }
-  const entry = `${AUTH_KEYS_ENTRY} ${publicKey.trim()}`;
+
+  const entry = `${AUTH_KEYS_ENTRY} ${normalized}`;
   const existing = fs.existsSync(authPath) ? fs.readFileSync(authPath, 'utf8') : '';
-  if (existing.includes('podcast-tunnel')) {
+
+  if (authorizedKeysContainsKey(existing, normalized)) {
     return;
   }
+
   const content = existing ? (existing.trimEnd() + '\n' + entry + '\n') : (entry + '\n');
   fs.writeFileSync(authPath, content, { mode: 0o600 });
+
+  try {
+    fs.chmodSync(authDir, 0o700);
+    fs.chmodSync(authPath, 0o600);
+  } catch (_) {}
 }
 
 /** For remote (VPS reverse SSH): no local authorized_keys, user adds key to VPS */
@@ -224,7 +259,8 @@ function createCredentialsBundle(dbPassword, vpsHost, vpsUser, dbPort = 5432) {
 /** For local (same network): adds key to DB's authorized_keys, App connects via SSH tunnel */
 function createCredentialsBundleLocal(dbPassword, dbHost, dbPort = 5432) {
   generateKeyPair();
-  const publicKey = fs.readFileSync(PUB_PATH, 'utf8');
+  const publicKeyRaw = fs.readFileSync(PUB_PATH, 'utf8');
+  const publicKey = normalizePublicKeyLine(publicKeyRaw);
   addToAuthorizedKeys(publicKey);
   const privateKey = fs.readFileSync(KEY_PATH, 'utf8');
   const sshUser = os.userInfo().username;
@@ -232,7 +268,7 @@ function createCredentialsBundleLocal(dbPassword, dbHost, dbPort = 5432) {
     ssh_host: dbHost,
     ssh_user: sshUser,
     ssh_private_key: privateKey,
-    ssh_public_key: publicKey.trim(),
+    ssh_public_key: publicKey,
     db_password: dbPassword,
     db_port: dbPort,
   };
@@ -242,6 +278,7 @@ module.exports = {
   generateKeyPair,
   addToAuthorizedKeys,
   getPublicKey,
+  getAuthorizedKeysPath,
   createCredentialsBundle,
   createCredentialsBundleLocal,
   KEY_PATH,
