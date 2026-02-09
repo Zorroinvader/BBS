@@ -33,9 +33,18 @@ function checkPortReachable(host, port, timeoutMs = 5000) {
   });
 }
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.resolve(path.join(__dirname, '..'));
 const ENV_PATH = path.join(ROOT, '.env');
 const CREDS_PATH = path.join(ROOT, 'podcast-ssh-credentials.json');
+
+/** SSH key path for --app-only-ssh: always in project root, absolute path (works on any machine/cwd) */
+function getAppSshKeyPath() {
+  return path.resolve(ROOT, 'podcast_tunnel');
+}
+
+function getAppSshPubKeyPath() {
+  return path.resolve(ROOT, 'podcast_tunnel.pub');
+}
 
 function print(msg) {
   console.log(msg);
@@ -697,18 +706,16 @@ async function setupAppOnlySsh(rl) {
   }
   if (!privateKey.endsWith('\n')) privateKey += '\n';
 
-  const sshDir = path.join(ROOT, '.ssh');
-  if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { mode: 0o700 });
-  const keyPath = path.join(sshDir, 'podcast_tunnel');
-  fs.writeFileSync(keyPath, privateKey, { mode: 0o600 });
+  const keyPathAbs = getAppSshKeyPath();
+  fs.writeFileSync(keyPathAbs, privateKey, { mode: 0o600 });
   if (os.platform() !== 'win32') {
-    try { fs.chmodSync(keyPath, 0o600); } catch (_) {}
+    try { fs.chmodSync(keyPathAbs, 0o600); } catch (_) {}
   }
-  print('SSH-Schlüssel aus Credentials in ' + path.resolve(keyPath) + ' geschrieben.');
+  print('SSH-Schlüssel aus Credentials in ' + keyPathAbs + ' geschrieben (Projektroot, unabhängig vom Arbeitsverzeichnis).');
 
   let pubKeyForDb = (bundle.ssh_public_key || '').replace(/\s+/g, ' ').trim();
   if (!pubKeyForDb) {
-    const pubPath = path.join(ROOT, '.ssh', 'podcast_tunnel.pub');
+    const pubPath = getAppSshPubKeyPath();
     if (fs.existsSync(pubPath)) pubKeyForDb = fs.readFileSync(pubPath, 'utf8').replace(/\s+/g, ' ').trim();
   }
   if (pubKeyForDb) {
@@ -765,13 +772,52 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   }
   print('  Host erreichbar.');
 
+  print('\nTeste SSH-Verbindung mit Schlüssel aus Projektroot...');
+  let sshTestStderr = '';
+  try {
+    execSync('ssh', [
+      '-o', 'StrictHostKeyChecking=accept-new',
+      '-o', 'BatchMode=yes',
+      '-o', 'ConnectTimeout=10',
+      '-i', keyPathAbs,
+      `${bundle.ssh_user}@${bundle.ssh_host}`,
+      'echo', 'OK',
+    ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], cwd: ROOT });
+  } catch (e) {
+    sshTestStderr = ((e.stderr || e.stdout || e.message) || '').toString().trim();
+  }
+  if (sshTestStderr) {
+    print('');
+    print('SSH-Test fehlgeschlagen. Ausgabe:');
+    print(sshTestStderr.trim());
+    print('');
+    print('Der öffentliche Schlüssel aus deiner Credentials-Datei muss auf dem DB-Rechner in');
+    print('  ~/.ssh/authorized_keys  (Benutzer: ' + bundle.ssh_user + ')');
+    print('stehen. Auf dem DB-Rechner (' + bundle.ssh_host + ') ausführen:');
+    print('');
+    if (pubKeyForDb) {
+      print('  echo "' + pubKeyForDb + '" >> ~/.ssh/authorized_keys');
+      print('');
+      print('Prüfe auf dem DB-Rechner: chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys');
+      print('Dann erneut: node scripts/setup.js --app-only-ssh  (gleiche Credentials-Datei).');
+    } else {
+      print('  (Kein öffentlicher Schlüssel in Credentials – auf dem DB-Rechner: node scripts/setup.js --db-local)');
+      print('');
+      print('Dann die neue podcast-ssh-credentials.json kopieren und --app-only-ssh erneut ausführen.');
+    }
+    print('');
+    print('Test: ssh -i "' + keyPathAbs + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
+    process.exit(1);
+  }
+  print('  SSH-Verbindung OK.');
+
   print('\nStarte SSH-Tunnel zu ' + bundle.ssh_host + '...');
   const tunnel = spawn('ssh', [
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'BatchMode=yes',
     '-o', 'ConnectTimeout=10',
     '-L', `${localPort}:localhost:${bundle.db_port || 5432}`,
-    '-i', keyPath,
+    '-i', keyPathAbs,
     '-N',
     `${bundle.ssh_user}@${bundle.ssh_host}`,
   ], { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT });
@@ -816,7 +862,7 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
     print('Weitere Hinweise:');
     print('  - Schlüssel: Genau dieser Schlüssel (siehe oben) muss auf dem DB-Rechner stehen.');
     print('  - Benutzer: Stimmt ' + bundle.ssh_user + ' mit dem Linux-User auf dem DB-Rechner?');
-    print('  - Test: ssh -i "' + keyPath + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
+    print('  - Test: ssh -i "' + keyPathAbs + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
     process.exit(1);
   }
   tunnelReady = true;
@@ -847,7 +893,7 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   printAppLink(publicUrl, true);
   print('Konfiguration gespeichert in:');
   print('  .env: ' + path.resolve(ENV_PATH));
-  print('  SSH-Schlüssel: ' + path.resolve(path.join(ROOT, '.ssh', 'podcast_tunnel')));
+  print('  SSH-Schlüssel: ' + getAppSshKeyPath());
 
   process.on('SIGINT', () => {
     tunnel.kill('SIGINT');

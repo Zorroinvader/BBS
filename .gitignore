@@ -6,4 +6,6 @@ data/*
 .env
 *.log
 .ssh/
+podcast_tunnel
+podcast_tunnel.pub
 podcast-ssh-credentials.json
