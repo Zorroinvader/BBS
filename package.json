@@ -25,6 +25,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "pg": "^8.13.0",
-    "read": "^5.0.1"
+    "read": "^5.0.1",
+    "music-metadata": "^10.5.0",
+    "rss-parser": "^3.13.0"
   }
 }

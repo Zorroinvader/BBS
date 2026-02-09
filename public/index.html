@@ -8,8 +8,77 @@
   <link rel="preload" href="/images/header-bg.jpg" as="image">
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <style>
+    .filter-dropdown {
+      position: relative;
+    }
+    .filter-dropdown-button {
+      min-width: 120px;
+    }
+    .filter-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.5rem);
+      z-index: 20;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid var(--color-border);
+      padding: 1rem 1.25rem;
+      min-width: 240px;
+    }
+    .filter-panel h3 {
+      margin: 0 0 0.75rem 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .filter-row {
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .filter-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.25rem;
+    }
+    .filter-row select {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 0.9rem;
+      padding: 0.4rem 0.5rem;
+    }
+    .filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Show hero background image again on the main page */
+    .home-hero .hero {
+      position: relative;
+      background-image: url('/images/header-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: var(--color-white);
+    }
+    .home-hero .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(30, 58, 95, 0.2) 0%, rgba(21, 42, 69, 0.7) 100%);
+      z-index: 0;
+    }
+    .home-hero .hero > * {
+      position: relative;
+      z-index: 1;
+    }
+  </style>
 </head>
-<body class="home-page">
+<body class="admin-page home-hero">
   <div class="top-hero">
     <header class="site-header">
       <div class="site-header-bg">
@@ -67,16 +136,10 @@
 
     <section class="section">
       <div class="section-toolbar">
-        <h2 class="section-title">Alle Podcasts</h2>
-        <div class="toolbar-controls">
-          <label for="filter-series" class="filter-label">Reihe / Playlist:</label>
-          <select id="filter-series" class="filter-select">
-            <option value="">Alle</option>
-          </select>
-          <a href="/alle-podcasts.html" id="link-alle" class="link-alle">Alle anzeigen</a>
-        </div>
+        <h2 class="section-title">Podcasts entdecken</h2>
+        <a href="/alle-podcasts.html" id="link-alle" class="link-alle">Alle anzeigen</a>
       </div>
-      <div id="podcasts-preview" class="podcasts-list"></div>
+      <div id="podcast-rows"></div>
     </section>
   </main>
 
@@ -116,46 +179,71 @@
       const latestEl = document.getElementById('latest-upload');
       latestEl.innerHTML = latest ? renderPodcastCard(latest) : '<p>Noch keine Podcasts vorhanden.</p>';
 
-      const seriesRes = await fetch(API + '/episodes/meta/series').then(r => r.json());
-      const seriesSelect = document.getElementById('filter-series');
       const searchMain = document.getElementById('search-main');
       const linkAlle = document.getElementById('link-alle');
-      seriesSelect.innerHTML = '<option value="">Alle</option>' + (seriesRes.series || []).map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 
-      function buildQuery() {
-        const series = seriesSelect.value;
-        const q = (searchMain && searchMain.value) ? searchMain.value.trim() : '';
-        return { series: series || '', q: q };
-      }
-      function updatePreview() {
-        const { series, q } = buildQuery();
-        const params = new URLSearchParams();
-        if (series) params.set('series', series);
-        if (q) params.set('q', q);
-        const url = API + '/episodes?limit=5' + (params.toString() ? '&' + params.toString() : '');
-        fetch(url).then(r => r.json()).then(data => {
-          const previewEl = document.getElementById('podcasts-preview');
-          previewEl.innerHTML = (data.episodes || []).map(renderPodcastCard).join('') || '<p>Keine Podcasts gefunden.</p>';
-        });
-        linkAlle.href = '/alle-podcasts.html' + (params.toString() ? '?' + params.toString() : '');
-      }
-      seriesSelect.onchange = updatePreview;
       if (searchMain) {
-        searchMain.oninput = updatePreview;
-        searchMain.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); updatePreview(); } };
+        const goToSearch = () => {
+          const q = searchMain.value.trim();
+          const params = new URLSearchParams();
+          if (q) params.set('q', q);
+          window.location.href = '/alle-podcasts.html' + (params.toString() ? '?' + params.toString() : '');
+        };
+        searchMain.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); goToSearch(); } };
+        document.getElementById('search-btn')?.addEventListener('click', goToSearch);
       }
-      document.getElementById('search-btn')?.addEventListener('click', updatePreview);
 
-      const list = await fetch(API + '/episodes?limit=5').then(r => r.json());
-      const previewEl = document.getElementById('podcasts-preview');
-      previewEl.innerHTML = (list.episodes || []).map(renderPodcastCard).join('') || '<p>Noch keine Podcasts vorhanden.</p>';
+      // Disney+/Streaming-ähnliche horizontale Reihen
+      const rowsRoot = document.getElementById('podcast-rows');
+      if (rowsRoot) {
+        const list = await fetch(API + '/episodes?limit=200').then(r => r.json());
+        const episodes = list.episodes || [];
 
-      const urlParams = new URLSearchParams(location.search);
-      const urlSeries = urlParams.get('series');
-      const urlQ = urlParams.get('q');
-      if (urlSeries) seriesSelect.value = urlSeries;
-      if (urlQ && searchMain) searchMain.value = urlQ;
-      if (urlSeries || urlQ) updatePreview();
+        // Reihe 1: Alle Veröffentlichungen (neueste zuerst)
+        const allRow = document.createElement('section');
+        allRow.className = 'category-row';
+        allRow.innerHTML = `
+          <div class="category-row-header">
+            <h3 class="category-row-title">Alle Veröffentlichungen</h3>
+            <a class="category-row-link" href="/alle-podcasts.html">Mehr</a>
+          </div>
+          <div class="category-row-list"></div>
+        `;
+        rowsRoot.appendChild(allRow);
+        const allListEl = allRow.querySelector('.category-row-list');
+        episodes.slice(0, 12).forEach((epItem) => {
+          allListEl.insertAdjacentHTML('beforeend', renderPodcastCard(epItem));
+        });
+
+        // Weitere Reihen: nach Kategorie gruppiert (Top nach Anzahl)
+        const byCategory = {};
+        for (const epItem of episodes) {
+          const cat = (epItem.category || '').trim();
+          if (!cat) continue;
+          if (!byCategory[cat]) byCategory[cat] = [];
+          byCategory[cat].push(epItem);
+        }
+        const sortedCats = Object.entries(byCategory)
+          .sort((a, b) => b[1].length - a[1].length);
+
+        for (const [catName, catEpisodes] of sortedCats) {
+          if (!catEpisodes.length) continue;
+          const row = document.createElement('section');
+          row.className = 'category-row';
+          row.innerHTML = `
+            <div class="category-row-header">
+              <h3 class="category-row-title">${escapeHtml(catName)}</h3>
+              <a class="category-row-link" href="/alle-podcasts.html?category=${encodeURIComponent(catName)}">Mehr</a>
+            </div>
+            <div class="category-row-list"></div>
+          `;
+          rowsRoot.appendChild(row);
+          const rowListEl = row.querySelector('.category-row-list');
+          catEpisodes.slice(0, 12).forEach((epItem) => {
+            rowListEl.insertAdjacentHTML('beforeend', renderPodcastCard(epItem));
+          });
+        }
+      }
     })();
   </script>
 </body>

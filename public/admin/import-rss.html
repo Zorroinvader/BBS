@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RSS-Import – Admin</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .import-form {
+      max-width: 540px;
+      padding: 2rem 2.25rem;
+      margin: 2rem auto;
+      background: var(--color-white);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(15,23,42,0.12);
+      border: 1px solid rgba(148,163,184,0.5);
+    }
+    .import-form h1 {
+      margin-top: 0;
+      margin-bottom: 0.25rem;
+    }
+    .import-form-intro {
+      margin-top: 0;
+      margin-bottom: 1.25rem;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+    }
+    .import-form label {
+      display: block;
+      margin-top: 0.75rem;
+      color: var(--color-text);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .import-form input,
+    .import-form select {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      margin-top: 0.25rem;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      color: var(--color-text);
+      font-size: 0.95rem;
+    }
+    .import-form .hint {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      margin-top: 0.25rem;
+    }
+    .import-form .btn-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .import-form .btn-secondary {
+      background: transparent;
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+    }
+    .import-form .btn-secondary:hover {
+      background: rgba(30, 58, 95, 0.06);
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <header class="site-header">
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Admin</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="stats.html">Statistik (Admin)</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html" class="active">Aus RSS importieren</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
+      <div class="import-form">
+        <h1>Podcasts aus RSS importieren</h1>
+        <p class="import-form-intro">
+          Importiere bestehende Folgen aus einem externen RSS-Feed. Für Datenfelder, die hier nicht unterstützt werden,
+          wird die Kategorie automatisch auf <strong>Archiv</strong> gesetzt.
+        </p>
+        <form id="import-form">
+          <label for="rss-url">RSS-Feed-URL</label>
+          <input id="rss-url" type="url" name="url" placeholder="https://example.com/feed.xml" required>
+          <span class="hint">Die URL muss mit http:// oder https:// beginnen und auf einen gültigen Podcast-RSS-Feed zeigen.</span>
+
+          <label for="rss-category">Kategorie für importierte Folgen</label>
+          <input id="rss-category" type="text" name="category" value="Archiv" list="category-list">
+          <datalist id="category-list">
+            <option value="Archiv"></option>
+            <option value="Storys"></option>
+            <option value="Politik"></option>
+            <option value="Interview"></option>
+          </datalist>
+          <span class="hint">Alle importierten Folgen erhalten diese Kategorie, z.B. „Archiv“.</span>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-secondary" onclick="location.href='/admin/';">Abbrechen</button>
+            <button type="submit" class="btn btn-primary">Import starten</button>
+          </div>
+        </form>
+        <p id="status" style="margin-top:1rem; color: var(--color-text);"></p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+
+    if (!getToken()) {
+      window.location = '/admin/';
+    }
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault();
+      clearToken();
+      location.href = '/admin/';
+    };
+
+    const form = document.getElementById('import-form');
+    const statusEl = document.getElementById('status');
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('rss-url').value.trim();
+      const category = document.getElementById('rss-category').value.trim() || 'Archiv';
+      if (!url) {
+        statusEl.textContent = 'Bitte gib eine RSS-URL ein.';
+        return;
+      }
+      statusEl.textContent = 'Import läuft... Dies kann je nach Anzahl der Folgen etwas dauern.';
+      try {
+        const res = await fetch(API + '/import/rss', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + getToken(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url, category }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          statusEl.textContent = `Import abgeschlossen: ${data.importedCount || 0} Folge(n) in Kategorie „${data.category}“ importiert.`;
+          setTimeout(() => { location.href = '/admin/'; }, 2500);
+        } else {
+          statusEl.textContent = 'Fehler beim Import: ' + (data.error || res.statusText);
+        }
+      } catch (err) {
+        statusEl.textContent = 'Fehler beim Import: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>
+

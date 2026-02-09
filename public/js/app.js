@@ -9,22 +9,39 @@ function renderPodcastCard(ep) {
   const thumb = ep.artworkUrl || 'https://bbs2-wob.de/wp-content/uploads/2023/08/BBS-II_Podcast_Logo_2023.png';
   const duration = formatDuration(ep.durationSeconds);
   const date = ep.publishDate ? new Date(ep.publishDate).toLocaleDateString('de-DE') : '';
-  const seriesTag = ep.series ? `<span class="tag tag-series">${escapeHtml(ep.series)}</span>` : '';
-  const classTag = ep.classInfo ? `<span class="tag tag-class">${escapeHtml(ep.classInfo)}</span>` : '';
+
+  const platformLinks = [];
+  if (ep.spotifyUrl) platformLinks.push(`<a href="${escapeHtml(ep.spotifyUrl)}" target="_blank" rel="noopener noreferrer">Spotify</a>`);
+  if (ep.appleUrl) platformLinks.push(`<a href="${escapeHtml(ep.appleUrl)}" target="_blank" rel="noopener noreferrer">Apple&nbsp;Podcasts</a>`);
+  if (ep.youtubeUrl) platformLinks.push(`<a href="${escapeHtml(ep.youtubeUrl)}" target="_blank" rel="noopener noreferrer">YouTube</a>`);
+
+  const hasSeries = !!(ep.series && ep.series.trim());
+  const hasCategory = !!(ep.category && ep.category.trim());
+  const hasClassInfo = !!(ep.classInfo && ep.classInfo.trim());
+
   return `
-    <div class="podcast-card" data-id="${ep.id}">
-      <img class="thumb" src="${thumb}" alt="">
-      <div class="info">
-        <h3 class="title">${escapeHtml(ep.title)}</h3>
-        ${(seriesTag || classTag) ? `<div class="tags">${seriesTag}${classTag}</div>` : ''}
-        <p class="desc">${escapeHtml(ep.description || '').slice(0, 120)}${(ep.description || '').length > 120 ? '...' : ''}</p>
-        <div class="meta">${duration} ${date ? '| ' + date : ''}</div>
-        <div class="platforms" style="margin-top:0.5rem;font-size:0.75rem;">
-          <span>Spotify</span> <span>Apple</span> <span>YouTube</span>
-        </div>
+    <article class="podcast-card" data-id="${ep.id}">
+      <div class="thumb-wrap">
+        <img class="thumb" src="${thumb}" alt="">
+        ${duration ? `<span class="chip chip-duration">${duration}</span>` : ''}
+        ${ep.audioUrl ? `<button class="play-btn" data-audio="${escapeHtml(ep.audioUrl)}" onclick="playEpisode(this)" title="Abspielen">▶</button>` : ''}
       </div>
-      ${ep.audioUrl ? `<button class="play-btn" data-audio="${escapeHtml(ep.audioUrl)}" onclick="playEpisode(this)" title="Abspielen">▶</button>` : ''}
-    </div>
+      <div class="info">
+        <header class="info-header">
+          <h3 class="title">${escapeHtml(ep.title)}</h3>
+          <div class="meta-row">
+            ${date ? `<span class="meta-item">${date}</span>` : ''}
+            ${hasSeries ? `<span class="meta-item">${escapeHtml(ep.series)}</span>` : ''}
+            ${hasClassInfo ? `<span class="meta-item">${escapeHtml(ep.classInfo)}</span>` : ''}
+          </div>
+        </header>
+        ${hasCategory ? `<div class="tags-row"><span class="tag tag-series">${escapeHtml(ep.category)}</span></div>` : ''}
+        <p class="desc">
+          ${escapeHtml(ep.description || '').slice(0, 160)}${(ep.description || '').length > 160 ? '…' : ''}
+        </p>
+        ${platformLinks.length ? `<div class="platforms">Auf: ${platformLinks.join(' · ')}</div>` : ''}
+      </div>
+    </article>
   `;
 }
 

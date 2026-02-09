@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin-Statistik – BBS II Wolfsburg Podcasts</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .admin-stats-intro {
+      max-width: 60ch;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+    .admin-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+      gap: 1.75rem;
+      margin-top: 1.5rem;
+    }
+    .admin-detail-block-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+      margin-bottom: 0.45rem;
+    }
+    .admin-detail-grid ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.9rem;
+      color: var(--color-text-secondary);
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .admin-detail-grid li span.count {
+      font-variant-numeric: tabular-nums;
+      color: var(--color-text);
+      font-weight: 500;
+    }
+    .admin-detail-grid li small {
+      color: var(--color-text-secondary);
+    }
+    @media (max-width: 960px) {
+      .admin-detail-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 720px) {
+      .admin-detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <header class="site-header">
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Admin</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="stats.html" class="active">Statistik (Admin)</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html">Aus RSS importieren</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
+      <h1>Statistik (Admin-Ansicht)</h1>
+      <p class="admin-stats-intro">
+        Interne Auswertung aller Podcasts: Hier siehst du detaillierte Kennzahlen nach Kategorien,
+        Klassen und Reihen sowie die Gesamtentwicklung über die Zeit.
+      </p>
+
+      <section class="section">
+        <h2>Gesamtüberblick</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="value" id="stat-episodes-total">0</div>
+            <div class="label">Episoden gesamt</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="stat-hours-total">0h</div>
+            <div class="label">Streambare Stunden (H:MM)</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="stat-episodes-30d">0</div>
+            <div class="label">Episoden (letzte 30 Tage)</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="stat-episodes-7d">0</div>
+            <div class="label">Episoden (letzte 7 Tage)</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="stat-avg-duration">0 min</div>
+            <div class="label">Ø Länge pro Episode</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="stat-series-count">0</div>
+            <div class="label">Serien / Reihen</div>
+          </div>
+          <div class="stat-card">
+            <div class="value" id="stat-last-publish">–</div>
+            <div class="label">Zuletzt veröffentlicht</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" style="margin-top:2.5rem;">
+        <h2>Detail-Auswertung</h2>
+        <div class="admin-detail-grid">
+          <div>
+            <div class="admin-detail-block-title">Kategorien (Top 10)</div>
+            <ul id="admin-stat-categories">
+              <li>Keine Daten geladen.</li>
+            </ul>
+          </div>
+          <div>
+            <div class="admin-detail-block-title">Klassen (Top 10)</div>
+            <ul id="admin-stat-classes">
+              <li>Keine Daten geladen.</li>
+            </ul>
+          </div>
+          <div>
+            <div class="admin-detail-block-title">Reihen / Serien (Top 10)</div>
+            <ul id="admin-stat-series">
+              <li>Keine Daten geladen.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+
+    if (!getToken()) {
+      window.location = '/admin/';
+    }
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault();
+      clearToken();
+      location.href = '/admin/';
+    };
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    async function loadAdminStats() {
+      try {
+        const res = await fetch(API + '/stats');
+        if (!res.ok) return;
+        const s = await res.json();
+
+        const episodesTotalEl = document.getElementById('stat-episodes-total');
+        if (episodesTotalEl) episodesTotalEl.textContent = s.episodeCount ?? 0;
+
+        const hoursTotalEl = document.getElementById('stat-hours-total');
+        if (hoursTotalEl) {
+          const timeLabel = s.streamableTime || null;
+          hoursTotalEl.textContent = timeLabel || ((s.streamableHours ?? 0) + 'h');
+        }
+
+        const episodes30dEl = document.getElementById('stat-episodes-30d');
+        if (episodes30dEl) episodes30dEl.textContent = s.episodesLast30Days ?? 0;
+
+        const episodes7dEl = document.getElementById('stat-episodes-7d');
+        if (episodes7dEl) episodes7dEl.textContent = s.episodesLast7Days ?? 0;
+
+        const avgDurationEl = document.getElementById('stat-avg-duration');
+        if (avgDurationEl) avgDurationEl.textContent = (s.averageDurationMinutes ?? 0) + ' min';
+
+        const seriesCountEl = document.getElementById('stat-series-count');
+        if (seriesCountEl) seriesCountEl.textContent = s.uniqueSeriesCount ?? 0;
+
+        const lastPublishEl = document.getElementById('stat-last-publish');
+        if (lastPublishEl) {
+          lastPublishEl.textContent = s.mostRecentPublishDate
+            ? new Date(s.mostRecentPublishDate).toLocaleDateString('de-DE')
+            : '–';
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    async function loadAdminDetailLists() {
+      try {
+        const res = await fetch(API + '/episodes?limit=500');
+        if (!res.ok) return;
+        const data = await res.json();
+        const episodes = data.episodes || [];
+
+        const catCounts = {};
+        const classCounts = {};
+        const seriesCounts = {};
+
+        for (const ep of episodes) {
+          const cat = (ep.category || '').trim();
+          if (cat) {
+            catCounts[cat] = (catCounts[cat] || 0) + 1;
+          }
+          const cls = (ep.classInfo || '').trim();
+          if (cls) {
+            classCounts[cls] = (classCounts[cls] || 0) + 1;
+          }
+          const ser = (ep.series || '').trim();
+          if (ser) {
+            seriesCounts[ser] = (seriesCounts[ser] || 0) + 1;
+          }
+        }
+
+        const catsEl = document.getElementById('admin-stat-categories');
+        const classesEl = document.getElementById('admin-stat-classes');
+        const seriesEl = document.getElementById('admin-stat-series');
+
+        if (catsEl) {
+          const entries = Object.entries(catCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+          if (!entries.length) {
+            catsEl.innerHTML = '<li>Keine Kategorien vergeben.</li>';
+          } else {
+            catsEl.innerHTML = entries.map(([name, count]) =>
+              `<li><span class="count">${count}×</span> – <a href="/alle-podcasts.html?category=${encodeURIComponent(name)}">${escapeHtml(name)}</a></li>`
+            ).join('');
+          }
+        }
+
+        if (classesEl) {
+          const entries = Object.entries(classCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+          if (!entries.length) {
+            classesEl.innerHTML = '<li>Keine Klassen vergeben.</li>';
+          } else {
+            classesEl.innerHTML = entries.map(([name, count]) =>
+              `<li><span class="count">${count}×</span> – <a href="/alle-podcasts.html?class=${encodeURIComponent(name)}">${escapeHtml(name)}</a></li>`
+            ).join('');
+          }
+        }
+
+        if (seriesEl) {
+          const entries = Object.entries(seriesCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+          if (!entries.length) {
+            seriesEl.innerHTML = '<li>Keine Reihen vergeben.</li>';
+          } else {
+            seriesEl.innerHTML = entries.map(([name, count]) =>
+              `<li><span class="count">${count}×</span> – <a href="/alle-podcasts.html?series=${encodeURIComponent(name)}">${escapeHtml(name)}</a></li>`
+            ).join('');
+          }
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    loadAdminStats();
+    loadAdminDetailLists();
+  </script>
+</body>
+</html>
+

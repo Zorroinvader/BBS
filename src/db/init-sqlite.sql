@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS episodes (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   series TEXT,
   class_info TEXT,
+  category TEXT,
+  spotify_url TEXT,
+  apple_url TEXT,
+  youtube_url TEXT,
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
 

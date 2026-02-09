@@ -8,8 +8,77 @@
   <link rel="preload" href="/images/header-bg.jpg" as="image">
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <style>
+    .filter-dropdown {
+      position: relative;
+    }
+    .filter-dropdown-button {
+      min-width: 120px;
+    }
+    .filter-panel {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.5rem);
+      z-index: 20;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid var(--color-border);
+      padding: 1rem 1.25rem;
+      min-width: 260px;
+    }
+    .filter-panel h3 {
+      margin: 0 0 0.75rem 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .filter-row {
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .filter-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.25rem;
+    }
+    .filter-row select,
+    .filter-row input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 0.9rem;
+      padding: 0.4rem 0.5rem;
+    }
+    .filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    /* Hero background image, with admin-style blue header */
+    .podcasts-hero .hero {
+      position: relative;
+      background-image: url('/images/header-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: var(--color-white);
+    }
+    .podcasts-hero .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(30, 58, 95, 0.2) 0%, rgba(21, 42, 69, 0.7) 100%);
+      z-index: 0;
+    }
+    .podcasts-hero .hero > * {
+      position: relative;
+      z-index: 1;
+    }
+  </style>
 </head>
-<body>
+<body class="admin-page podcasts-hero">
   <header class="site-header">
     <div class="site-header-bg">
       <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
@@ -21,7 +90,7 @@
       </a>
       <nav class="site-nav">
         <a href="/">Start</a>
-        <a href="/alle-podcasts.html">Alle Podcasts</a>
+        <a href="/alle-podcasts.html" aria-current="page">Alle Podcasts</a>
         <a href="/statistik.html">Statistik</a>
         <a href="/feed.xml" class="nav-link-rss" title="RSS-Feed">RSS</a>
         <a href="/admin/" class="btn btn-primary">Anmelden</a>
@@ -45,10 +114,55 @@
               <span class="search-btn-label">Suchen</span>
             </button>
           </div>
-          <label for="filter-series" class="filter-label">Reihe:</label>
-          <select id="filter-series" class="filter-select">
-            <option value="">Alle</option>
-          </select>
+          <div class="filter-dropdown">
+            <button id="filter-toggle" class="filter-select filter-dropdown-button" type="button">
+              Filter ▾
+            </button>
+            <div id="filter-panel" class="filter-panel" hidden>
+              <h3>Filter auswählen</h3>
+              <div class="filter-row">
+                <label>
+                  <input type="checkbox" id="chk-filter-series" checked>
+                  Reihe / Playlist
+                </label>
+                <select id="filter-series" class="filter-select">
+                  <option value="">Alle</option>
+                </select>
+              </div>
+              <div class="filter-row">
+                <label>
+                  <input type="checkbox" id="chk-filter-category" checked>
+                  Kategorie
+                </label>
+                <select id="filter-category" class="filter-select">
+                  <option value="">Alle</option>
+                </select>
+              </div>
+              <div class="filter-row">
+                <label>
+                  <input type="checkbox" id="chk-filter-class">
+                  Klasse
+                </label>
+                <input id="filter-class" type="text" class="filter-select" placeholder="z.B. BG21">
+              </div>
+              <div class="filter-row">
+                <label>
+                  <input type="checkbox" id="chk-filter-length">
+                  Länge
+                </label>
+                <select id="filter-length" class="filter-select">
+                  <option value="">Alle</option>
+                  <option value="short">Kurz (&lt; 5 Min)</option>
+                  <option value="medium">Mittel (5–15 Min)</option>
+                  <option value="long">Lang (&gt; 15 Min)</option>
+                </select>
+              </div>
+              <div class="filter-actions">
+                <button type="button" id="filter-reset" class="btn btn-secondary">Zurücksetzen</button>
+                <button type="button" id="filter-apply" class="btn btn-primary">Filter anwenden</button>
+              </div>
+            </div>
+          </div>
           <div class="view-toggle">
             <button id="btn-list" title="Listenansicht">≡</button>
             <button id="btn-grid" title="Rasteransicht">⊞</button>
@@ -90,19 +204,50 @@
     const limit = 10;
     let viewMode = 'list';
 
-    async function loadSeriesFilter() {
+    const COMMON_CATEGORIES = ['Storys', 'Politik', 'Interview', 'Schule', 'Technik', 'Musik', 'Kultur', 'Sport'];
+
+    async function loadFilters() {
       const res = await fetch(API + '/episodes/meta/series');
       const data = await res.json();
       const sel = document.getElementById('filter-series');
       sel.innerHTML = '<option value="">Alle</option>' + (data.series || []).map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
       sel.onchange = () => { page = 1; load(); };
+      try {
+        const res2 = await fetch(API + '/episodes/meta/categories');
+        const data2 = await res2.json();
+        const selCat = document.getElementById('filter-category');
+        const set = new Set(COMMON_CATEGORIES);
+        (data2.categories || []).forEach(c => { if (c) set.add(c); });
+        selCat.innerHTML = '<option value="">Alle</option>' + Array.from(set).map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        selCat.onchange = () => { page = 1; load(); };
+      } catch (_) {}
     }
 
     function buildParams() {
+      const filterSeriesOn = document.getElementById('chk-filter-series').checked;
+      const filterCategoryOn = document.getElementById('chk-filter-category').checked;
+      const filterClassOn = document.getElementById('chk-filter-class').checked;
+      const filterLengthOn = document.getElementById('chk-filter-length').checked;
+
       const series = document.getElementById('filter-series').value;
+      const category = document.getElementById('filter-category').value;
+      const classInfo = document.getElementById('filter-class').value;
+      const lengthFilter = document.getElementById('filter-length').value;
       const q = (document.getElementById('search-all') && document.getElementById('search-all').value) ? document.getElementById('search-all').value.trim() : '';
       const p = new URLSearchParams();
-      if (series) p.set('series', series);
+      if (filterSeriesOn && series) p.set('series', series);
+      if (filterCategoryOn && category) p.set('category', category);
+      if (filterClassOn && classInfo) p.set('class', classInfo.trim());
+      if (filterLengthOn) {
+        if (lengthFilter === 'short') {
+          p.set('maxDurationSeconds', String(5 * 60));
+        } else if (lengthFilter === 'medium') {
+          p.set('minDurationSeconds', String(5 * 60));
+          p.set('maxDurationSeconds', String(15 * 60));
+        } else if (lengthFilter === 'long') {
+          p.set('minDurationSeconds', String(15 * 60));
+        }
+      }
       if (q) p.set('q', q);
       return p.toString();
     }
@@ -134,9 +279,49 @@
     }
     document.getElementById('search-btn')?.addEventListener('click', () => { page = 1; load(); });
 
-    loadSeriesFilter().then(() => {
+    const filterToggle = document.getElementById('filter-toggle');
+    const filterPanel = document.getElementById('filter-panel');
+    const filterApply = document.getElementById('filter-apply');
+    const filterReset = document.getElementById('filter-reset');
+
+    filterToggle.addEventListener('click', () => {
+      const isHidden = filterPanel.hasAttribute('hidden');
+      if (isHidden) filterPanel.removeAttribute('hidden');
+      else filterPanel.setAttribute('hidden', '');
+    });
+
+    filterApply.addEventListener('click', () => {
+      page = 1;
+      load();
+      filterPanel.setAttribute('hidden', '');
+    });
+
+    filterReset.addEventListener('click', () => {
+      document.getElementById('chk-filter-series').checked = true;
+      document.getElementById('chk-filter-category').checked = true;
+      document.getElementById('chk-filter-class').checked = false;
+      document.getElementById('chk-filter-length').checked = false;
+      document.getElementById('filter-series').value = '';
+      document.getElementById('filter-category').value = '';
+      document.getElementById('filter-class').value = '';
+      document.getElementById('filter-length').value = '';
+      page = 1;
+      load();
+    });
+
+    loadFilters().then(() => {
       const params = new URLSearchParams(location.search);
       if (params.get('series')) document.getElementById('filter-series').value = params.get('series');
+      if (params.get('category')) document.getElementById('filter-category').value = params.get('category');
+      if (params.get('class')) document.getElementById('filter-class').value = params.get('class');
+      if (params.get('minDurationSeconds') || params.get('maxDurationSeconds')) {
+        const minD = parseInt(params.get('minDurationSeconds') || '0', 10);
+        const maxD = parseInt(params.get('maxDurationSeconds') || '0', 10);
+        const lenSel = document.getElementById('filter-length');
+        if (!isNaN(maxD) && maxD === 5 * 60 && (!minD || minD === 0)) lenSel.value = 'short';
+        else if (!isNaN(minD) && minD === 5 * 60 && !isNaN(maxD) && maxD === 15 * 60) lenSel.value = 'medium';
+        else if (!isNaN(minD) && minD === 15 * 60 && (!params.get('maxDurationSeconds'))) lenSel.value = 'long';
+      }
       if (params.get('q') && searchAll) searchAll.value = params.get('q');
       load();
     });

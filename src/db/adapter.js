@@ -15,7 +15,12 @@ async function createAdapter() {
     }
     await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS series TEXT');
     await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS class_info TEXT');
+    await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS category TEXT');
+    await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS spotify_url TEXT');
+    await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS apple_url TEXT');
+    await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS youtube_url TEXT');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_episodes_category ON episodes(category)');
 
     return {
       query: async (sql, params = []) => {
@@ -54,11 +59,16 @@ async function createAdapter() {
   const db = new Database(config.dbPath);
   const initSql = require('fs').readFileSync(require('path').join(__dirname, 'init-sqlite.sql'), 'utf8');
   db.exec(initSql);
-  // Migration: add series, class_info if missing (existing DBs)
+  // Migration: add series, class_info, category + external URLs if missing (existing DBs)
   const cols = db.prepare('PRAGMA table_info(episodes)').all().map((r) => r.name);
   if (!cols.includes('series')) db.prepare('ALTER TABLE episodes ADD COLUMN series TEXT').run();
   if (!cols.includes('class_info')) db.prepare('ALTER TABLE episodes ADD COLUMN class_info TEXT').run();
+  if (!cols.includes('category')) db.prepare('ALTER TABLE episodes ADD COLUMN category TEXT').run();
+  if (!cols.includes('spotify_url')) db.prepare('ALTER TABLE episodes ADD COLUMN spotify_url TEXT').run();
+  if (!cols.includes('apple_url')) db.prepare('ALTER TABLE episodes ADD COLUMN apple_url TEXT').run();
+  if (!cols.includes('youtube_url')) db.prepare('ALTER TABLE episodes ADD COLUMN youtube_url TEXT').run();
   db.prepare('CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series)').run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_episodes_category ON episodes(category)').run();
 
   return {
     query: (sql, params = []) => Promise.resolve({ rows: db.prepare(sql).all(...params) }),

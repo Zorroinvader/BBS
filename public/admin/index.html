@@ -41,16 +41,18 @@
     </div>
   </header>
 
-  <div id="login-wrap" style="max-width: 400px; margin: 3rem auto; padding: 0 1rem;">
-    <div id="login-form" class="admin-form" style="background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-      <h2 style="color: var(--color-text); margin-top: 0;">Anmelden</h2>
-      <p id="session-expired" style="color:#c55;background:#fdd;padding:0.5rem;border-radius:8px;display:none;">Session abgelaufen. Bitte erneut anmelden.</p>
+  <div id="login-wrap" class="admin-auth-wrap">
+    <div id="login-form" class="admin-form admin-panel">
+      <h2 class="admin-panel-title">Anmelden</h2>
+      <p id="session-expired" class="admin-alert admin-alert-warn" style="display:none;">Session abgelaufen. Bitte erneut anmelden.</p>
       <form id="login">
-        <input type="email" name="email" placeholder="E-Mail" required>
-        <input type="password" name="password" placeholder="Passwort" required>
-        <button type="submit" style="background: var(--color-primary); color: white;">Anmelden</button>
+        <label class="field-label" for="login-email">E-Mail</label>
+        <input id="login-email" type="email" name="email" placeholder="z.B. name@bbs2-wob.de" required>
+        <label class="field-label" for="login-password">Passwort</label>
+        <input id="login-password" type="password" name="password" placeholder="Passwort eingeben" required>
+        <button type="submit" class="btn btn-primary btn-full">Anmelden</button>
       </form>
-      <p id="login-error" style="color: #c53030; display: none;"></p>
+      <p id="login-error" class="admin-alert admin-alert-error" style="display: none;"></p>
     </div>
   </div>
 
@@ -60,9 +62,12 @@
         <ul class="admin-sidebar-nav">
           <li class="nav-section">Admin</li>
           <li><a href="/admin/" class="active">Dashboard</a></li>
+          <li><a href="stats.html">Statistik (Admin)</a></li>
           <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html">Aus RSS importieren</a></li>
           <li><a href="db-log.html">Live DB-Log</a></li>
           <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
           <li><a href="/">Zur Startseite</a></li>
         </ul>
       </nav>
@@ -71,7 +76,11 @@
       <h1>Dashboard</h1>
       <p style="margin: 1rem 0;">
         <a href="upload.html" class="btn">Neuen Podcast hochladen</a>
+        <a href="import-rss.html" class="btn btn-secondary" style="margin-left: 0.5rem;">Aus RSS importieren</a>
         <a href="db-log.html" class="btn btn-secondary" style="margin-left: 0.5rem;">Live DB-Log</a>
+      </p>
+      <p style="margin: 0 0 1.5rem 0; font-size:0.9rem; color:var(--color-text-secondary);">
+        Ausführliche Auswertungen findest du unter <strong>„Statistik (Admin)”</strong> in der linken Sidebar.
       </p>
       <h2>Episoden verwalten</h2>
       <div id="episodes-list"></div>

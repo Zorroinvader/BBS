@@ -8,8 +8,76 @@
   <link rel="preload" href="/images/header-bg.jpg" as="image">
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
+   <!-- Use same header styling as admin pages -->
+   <link rel="stylesheet" href="/admin/admin.css">
+  <style>
+    /* Make this stats page more minimal and chart-focused */
+    .section-totals {
+      text-align: center;
+    }
+    .section-totals h1 {
+      font-size: var(--text-h1);
+      margin-bottom: var(--space-block);
+    }
+    .section-totals .stats-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin: 1.5rem auto 0;
+      justify-content: center;
+      max-width: 720px;
+    }
+    .stat-card {
+      flex: 1 1 160px;
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+    }
+    .stat-card .value {
+      font-size: var(--text-h2);
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .stat-card .label {
+      margin-top: 0.15rem;
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+    }
+
+    .section-charts h2 {
+      text-align: center;
+      margin-bottom: var(--space-block);
+      font-size: var(--text-h2);
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2rem;
+      margin: 1.5rem auto 0;
+      max-width: 960px;
+    }
+    .chart-card {
+      background: transparent;
+      border-radius: 0;
+      padding: 0.5rem 0;
+      box-shadow: none;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .chart-card h2 {
+      font-size: var(--text-h3);
+      margin: 0 0 var(--space-block) 0;
+      color: var(--color-text);
+    }
+    .chart-card canvas {
+      width: 100%;
+      max-height: 520px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="admin-page">
   <header class="site-header">
     <div class="site-header-bg">
       <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
@@ -22,7 +90,7 @@
       <nav class="site-nav">
         <a href="/">Start</a>
         <a href="/alle-podcasts.html">Alle Podcasts</a>
-        <a href="/statistik.html">Statistik</a>
+        <a href="/statistik.html" aria-current="page">Statistik</a>
         <a href="/feed.xml" class="nav-link-rss" title="RSS-Feed">RSS</a>
         <a href="/admin/" class="btn btn-primary">Anmelden</a>
       </nav>
@@ -30,20 +98,37 @@
   </header>
 
   <main class="container">
-    <section class="section">
-      <h1>Statistik</h1>
+    <section class="section section-charts">
+      <h1>Podcast-Statistik</h1>
+      <p style="margin-top:0.5rem;color:var(--color-text-secondary);max-width:46rem;">
+        Wie entwickeln sich die BBS II Podcasts über die Zeit und welche Kategorien sind besonders aktiv?
+      </p>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h2>Veröffentlichte Episoden (letzte Monate)</h2>
+          <canvas id="chart-episodes-month"></canvas>
+        </div>
+        <div class="chart-card">
+          <h2>Episoden nach Kategorie</h2>
+          <canvas id="chart-categories"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-totals">
+      <h2>Aktuelle Kennzahlen</h2>
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="value" id="stat-listeners">0</div>
-          <div class="label">Aktive Hörer</div>
-        </div>
-        <div class="stat-card">
           <div class="value" id="stat-hours">0h</div>
-          <div class="label">Streambare Stunden</div>
+          <div class="label">Stunden abspielbar</div>
         </div>
         <div class="stat-card">
           <div class="value" id="stat-episodes">0</div>
           <div class="label">Episoden</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="stat-listeners">0</div>
+          <div class="label">Aktive Hörer (Platzhalter)</div>
         </div>
       </div>
     </section>
@@ -71,9 +156,109 @@
   <script>
     fetch('/api/stats').then(r => r.json()).then(s => {
       document.getElementById('stat-listeners').textContent = s.activeListeners ?? 0;
-      document.getElementById('stat-hours').textContent = (s.streamableHours ?? 0) + 'h';
+      const hoursEl = document.getElementById('stat-hours');
+      const timeLabel = s.streamableTime || null;
+      if (timeLabel) {
+        hoursEl.textContent = timeLabel;
+      } else {
+        hoursEl.textContent = (s.streamableHours ?? 0) + 'h';
+      }
       document.getElementById('stat-episodes').textContent = s.episodeCount ?? 0;
     }).catch(() => {});
+
+    async function loadCharts() {
+      if (typeof Chart === 'undefined') return;
+      try {
+        const res = await fetch('/api/episodes?limit=500');
+        if (!res.ok) return;
+        const data = await res.json();
+        const episodes = data.episodes || [];
+
+        // Chart 1: Episodes per month (last 6 months)
+        const now = new Date();
+        const monthLabels = [];
+        const monthCounts = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          monthLabels.push(d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' }));
+          monthCounts.push({ key, count: 0 });
+        }
+        const monthIndex = Object.fromEntries(monthCounts.map((m, idx) => [m.key, idx]));
+        for (const ep of episodes) {
+          if (!ep.publishDate) continue;
+          const d = new Date(ep.publishDate);
+          if (isNaN(d.getTime())) continue;
+          const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          if (key in monthIndex) {
+            monthCounts[monthIndex[key]].count += 1;
+          }
+        }
+        const ctxMonth = document.getElementById('chart-episodes-month');
+        if (ctxMonth) {
+          new Chart(ctxMonth.getContext('2d'), {
+            type: 'bar',
+            data: {
+              labels: monthLabels,
+              datasets: [{
+                label: 'Episoden',
+                data: monthCounts.map(m => m.count),
+                backgroundColor: 'rgba(37, 99, 235, 0.6)',
+                borderRadius: 6,
+              }],
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+              },
+            },
+          });
+        }
+
+        // Chart 2: Episodes per category (top 6)
+        const catCounts = {};
+        for (const ep of episodes) {
+          const raw = (ep.category || '').trim();
+          if (!raw) continue;
+          catCounts[raw] = (catCounts[raw] || 0) + 1;
+        }
+        const catEntries = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        const ctxCat = document.getElementById('chart-categories');
+        if (ctxCat && catEntries.length) {
+          const colors = [
+            'rgba(37, 99, 235, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(249, 115, 22, 0.8)',
+            'rgba(236, 72, 153, 0.8)',
+            'rgba(234, 179, 8, 0.8)',
+            'rgba(107, 114, 128, 0.8)',
+          ];
+          new Chart(ctxCat.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+              labels: catEntries.map(e => e[0]),
+              datasets: [{
+                data: catEntries.map(e => e[1]),
+                backgroundColor: colors.slice(0, catEntries.length),
+              }],
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: 'bottom' },
+              },
+            },
+          });
+        }
+      } catch (_) {
+        // ignore chart errors
+      }
+    }
+
+    loadCharts();
   </script>
 </body>
 </html>

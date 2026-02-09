@@ -1,3 +1,4 @@
+/* Visual hierarchy & type scale aligned with Eleken, UIUXNews, and typography-in-design-systems guidance. */
 :root {
   /* BBS II Wolfsburg – institutional blue and warm off-white (aligned with bbs2-wob.de) */
   --color-primary: #1e3a5f;
@@ -10,4 +11,25 @@
   --font-family: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
   /* Header background (local copy so it loads fully) – overlay keeps text readable */
   --header-bg-image: url('/images/header-bg.jpg');
+
+  /* Typography scale – modular hierarchy (H1 > H2 > H3 > body > small) so one clear focal point */
+  --text-base: 1rem;           /* 16px – body */
+  --text-sm: 0.875rem;        /* 14px – captions, meta */
+  --text-xs: 0.75rem;         /* 12px – labels, chips */
+  --text-lg: 1.125rem;        /* 18px – lead / intro */
+  --text-h3: 1.25rem;         /* 20px – card titles, row titles */
+  --text-h2: 1.5rem;          /* 24px – section headings */
+  --text-h1: 2rem;            /* 32px – page/hero title */
+  --text-hero: 2.25rem;       /* 36px – hero only, single focal point */
+
+  /* Line height – readability (body generous, headings tighter) */
+  --leading-tight: 1.2;
+  --leading-snug: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+
+  /* Spacing – proximity: tight within groups, macro between sections */
+  --space-section: 2.5rem;    /* between major sections */
+  --space-block: 1.25rem;     /* between heading and content */
+  --space-inline: 0.5rem;     /* between related inline elements */
 }

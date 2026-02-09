@@ -8,16 +8,127 @@
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="admin.css">
   <style>
-    .upload-form { max-width: 600px; padding: 2rem; }
-    .upload-form label { display: block; margin-top: 1rem; color: var(--color-text); }
-    .upload-form input, .upload-form textarea { width: 100%; padding: 0.6rem; margin-top: 0.25rem; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text); }
-    .upload-form textarea { min-height: 100px; }
-    .upload-form button { margin-top: 1rem; padding: 0.7rem 1.25rem; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .upload-form button:hover { background: var(--color-primary-hover); }
+    .upload-form {
+      max-width: 760px;
+      padding: 2rem 2.25rem;
+      margin: 0 auto;
+      background: var(--color-white);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(15,23,42,0.12);
+      border: 1px solid rgba(148,163,184,0.5);
+    }
+    .upload-form h1 {
+      margin-top: 0;
+      margin-bottom: 0.25rem;
+    }
+    .upload-form-intro {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+    }
+    .upload-steps {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      list-style: none;
+      padding: 0;
+    }
+    .upload-steps li {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border-radius: 999px;
+      background: #f3f4f6;
+      text-align: center;
+      color: var(--color-text-secondary);
+    }
+    .upload-steps li.active {
+      background: rgba(37,99,235,0.1);
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+    .upload-form-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+    .upload-form-fieldset {
+      border: none;
+      padding: 0;
+      margin: 0 0 1rem 0;
+    }
+    .upload-form legend {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--color-text);
+    }
+    .upload-form label {
+      display: block;
+      margin-top: 0.75rem;
+      color: var(--color-text);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .upload-form input,
+    .upload-form textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      margin-top: 0.25rem;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      color: var(--color-text);
+      font-size: 0.95rem;
+    }
+    .upload-form textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+    .upload-form .hint {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--color-text-secondary);
+      margin-top: 0.25rem;
+    }
+    .upload-form button {
+      margin-top: 1.25rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .upload-form .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    .upload-form .btn-secondary {
+      background: transparent;
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+    }
+    .upload-form .btn-secondary:hover {
+      background: rgba(30, 58, 95, 0.06);
+    }
+    .current-artwork img {
+      max-width: 180px;
+      max-height: 110px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid var(--color-border);
+    }
     .step { display: none; }
     .step.active { display: block; }
-    .upload-form .hint { display: block; font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 0.25rem; }
-    .current-artwork img { max-width: 160px; max-height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid var(--color-border); }
+    @media (max-width: 800px) {
+      .upload-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
   </style>
 </head>
 <body class="admin-page">
@@ -43,50 +154,84 @@
         <ul class="admin-sidebar-nav">
           <li class="nav-section">Admin</li>
           <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="stats.html">Statistik (Admin)</a></li>
           <li><a href="upload.html" class="active">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html">Aus RSS importieren</a></li>
           <li><a href="db-log.html">Live DB-Log</a></li>
           <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
           <li><a href="/">Zur Startseite</a></li>
         </ul>
       </nav>
     </aside>
     <main class="admin-main">
-    <div class="upload-form">
-      <h1>Podcast hochladen</h1>
-      <p>Schritt 1: Audio-Datei hochladen → Schritt 2: Metadaten bearbeiten → Schritt 3: Veröffentlichen</p>
+      <div class="upload-form">
+        <h1>Podcast hochladen</h1>
+        <p class="upload-form-intro">In drei Schritten zur fertigen Episode: Datei auswählen, Infos ergänzen und veröffentlichen.</p>
+        <ul class="upload-steps">
+          <li id="step-pill-1" class="active">1. Audio-Datei</li>
+          <li id="step-pill-2">2. Metadaten</li>
+          <li>3. Veröffentlichen</li>
+        </ul>
 
-      <form id="upload-form">
-        <div class="step active" id="step1">
-          <h2>Schritt 1: Audio-Datei</h2>
-          <label>Datei (mp3 oder m4a, max. 200 MB)</label>
-          <input type="file" name="audio" accept=".mp3,.m4a,audio/mpeg,audio/x-m4a" required>
-        </div>
+        <form id="upload-form">
+          <div class="step active" id="step1">
+            <fieldset class="upload-form-fieldset">
+              <legend>Schritt 1: Audio-Datei</legend>
+              <label for="audio-input">Datei (mp3 oder m4a, max. 200 MB)</label>
+              <input id="audio-input" type="file" name="audio" accept=".mp3,.m4a,audio/mpeg,audio/x-m4a" required>
+              <span class="hint">Tipp: Die Dateigröße hängt von der Länge und der Qualität des Audios ab.</span>
+            </fieldset>
+          </div>
 
-        <div class="step" id="step2">
-          <h2>Schritt 2: Metadaten</h2>
-          <label>Name der Episode (wird überall angezeigt, nicht der Dateiname) *</label>
-          <input type="text" name="title" required placeholder="z.B. Einführung oder Folge 1 – Thema">
-          <label>Beschreibung</label>
-          <textarea name="description" placeholder="Kurzbeschreibung der Episode"></textarea>
-          <label>Welche Reihe / Playlist</label>
-          <input type="text" name="series" id="series" list="series-list" placeholder="z.B. Umwelt, Politik, …">
-          <datalist id="series-list"></datalist>
-          <label>Welche Klasse hat gemacht (optional)</label>
-          <input type="text" name="class_info" placeholder="z.B. BG21, FOS22">
-          <label>Cover-Bild (optional)</label>
-          <div id="current-artwork" class="current-artwork" style="display:none; margin-bottom: 0.5rem;"></div>
-          <input type="file" name="artwork" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
-          <span class="hint">JPG, PNG oder WebP, max. 5 MB. Wird als Vorschaubild der Episode angezeigt.</span>
-          <label>Dauer (Sekunden, optional)</label>
-          <input type="number" name="duration_seconds" placeholder="z.B. 600 für 10 Min">
-        </div>
+          <div class="step" id="step2">
+            <fieldset class="upload-form-fieldset">
+              <legend>Schritt 2: Metadaten</legend>
+              <div class="upload-form-grid">
+                <div>
+                  <label for="title-input">Name der Episode *</label>
+                  <input id="title-input" type="text" name="title" required placeholder="z.B. Einführung oder Folge 1 – Thema">
+                  <span class="hint">Dieser Name wird überall auf der Website angezeigt.</span>
 
-        <button type="button" id="btn-next">Weiter</button>
-        <button type="submit" id="btn-publish" style="display:none;">Veröffentlichen</button>
-      </form>
+                  <label for="description-input">Beschreibung</label>
+                  <textarea id="description-input" name="description" placeholder="Kurzbeschreibung der Episode"></textarea>
+                </div>
+                <div>
+                  <label for="series-input">Reihe / Playlist</label>
+                  <input id="series-input" type="text" name="series" list="series-list" placeholder="z.B. Projet Sonne, Archiv, …">
+                  <datalist id="series-list"></datalist>
 
-      <p id="status" style="margin-top:1rem; color: var(--color-text);"></p>
-    </div>
+                  <label for="category-input">Kategorie</label>
+                  <input id="category-input" type="text" name="category" list="category-list" placeholder="z.B. Storys, Politik, Musik">
+                  <datalist id="category-list"></datalist>
+
+                  <label for="class-input">Klasse (optional)</label>
+                  <input id="class-input" type="text" name="class_info" placeholder="z.B. BG21, FOS22">
+
+                  <label for="artwork-input">Cover-Bild (optional)</label>
+                  <div id="current-artwork" class="current-artwork" style="display:none; margin-bottom: 0.5rem;"></div>
+                  <input id="artwork-input" type="file" name="artwork" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                  <span class="hint">JPG, PNG oder WebP, max. 5 MB. Wird als Vorschaubild der Episode angezeigt.</span>
+
+                  <label for="duration-input">Dauer (wird automatisch aus der Datei gelesen)</label>
+                  <input id="duration-input" type="number" name="duration_seconds" placeholder="Wird automatisch gesetzt" disabled>
+                  <label>Externe Plattformen (optional)</label>
+                  <input type="url" name="spotify_url" placeholder="Spotify-Link zur Episode">
+                  <input type="url" name="apple_url" placeholder="Apple Podcasts-Link zur Episode">
+                  <input type="url" name="youtube_url" placeholder="YouTube-Link zur Episode">
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" id="btn-next" class="btn btn-primary">Weiter</button>
+            <button type="submit" id="btn-publish" class="btn btn-primary" style="display:none;">Veröffentlichen</button>
+          </div>
+        </form>
+
+        <p id="status" style="margin-top:1rem; color: var(--color-text);"></p>
+      </div>
     </main>
   </div>
 
@@ -95,6 +240,7 @@
     const tokenKey = 'podcast_token';
     let step = 1;
     let selectedFile = null;
+    let detectedDurationSeconds = null;
 
     function getToken() { return localStorage.getItem(tokenKey); }
     function clearToken() { localStorage.removeItem(tokenKey); }
@@ -116,18 +262,32 @@
     const step2 = document.getElementById('step2');
     const btnNext = document.getElementById('btn-next');
     const btnPublish = document.getElementById('btn-publish');
+    const stepPill1 = document.getElementById('step-pill-1');
+    const stepPill2 = document.getElementById('step-pill-2');
 
     const urlParams = new URLSearchParams(location.search);
     const editId = urlParams.get('id');
-    async function fillSeriesDatalist() {
+    const COMMON_CATEGORIES = ['Storys', 'Politik', 'Interview', 'Schule', 'Technik', 'Musik', 'Kultur', 'Sport'];
+
+    async function fillMetaDatalists() {
       try {
         const r = await fetch(API + '/episodes/meta/series');
         const data = await r.json();
         const list = document.getElementById('series-list');
         list.innerHTML = (data.series || []).map(s => '<option value="' + escapeHtml(s) + '">').join('');
       } catch (_) {}
+      try {
+        const r2 = await fetch(API + '/episodes/meta/categories');
+        const data2 = await r2.json();
+        const list2 = document.getElementById('category-list');
+        if (list2) {
+          const set = new Set(COMMON_CATEGORIES);
+          (data2.categories || []).forEach(c => { if (c) set.add(c); });
+          list2.innerHTML = Array.from(set).map(c => '<option value="' + escapeHtml(c) + '">').join('');
+        }
+      } catch (_) {}
     }
-    fillSeriesDatalist();
+    fillMetaDatalists();
 
     if (editId) {
       document.querySelector('h1').textContent = 'Episoden bearbeiten';
@@ -136,12 +296,20 @@
       btnNext.style.display = 'none';
       btnPublish.style.display = 'inline-block';
       btnPublish.textContent = 'Speichern';
+      if (stepPill1 && stepPill2) {
+        stepPill1.classList.remove('active');
+        stepPill2.classList.add('active');
+      }
       fetch(API + '/episodes/' + editId).then(r => r.json()).then(ep => {
         form.elements.title.value = ep.title;
         form.elements.description.value = ep.description || '';
         form.elements.series.value = ep.series || '';
+        if (form.elements.category) form.elements.category.value = ep.category || '';
         form.elements.class_info.value = ep.classInfo || '';
         form.elements.duration_seconds.value = ep.durationSeconds || '';
+        if (form.elements.spotify_url) form.elements.spotify_url.value = ep.spotifyUrl || '';
+        if (form.elements.apple_url) form.elements.apple_url.value = ep.appleUrl || '';
+        if (form.elements.youtube_url) form.elements.youtube_url.value = ep.youtubeUrl || '';
         const artEl = document.getElementById('current-artwork');
         if (ep.artworkUrl && artEl) {
           artEl.style.display = 'block';
@@ -154,11 +322,30 @@
       const fileInput = form.audio;
       if (!fileInput.files.length) { alert('Bitte wähle eine Audio-Datei.'); return; }
       selectedFile = fileInput.files[0];
+      // Versuche die Dauer im Browser zu bestimmen, um sie ans Backend zu senden
+      try {
+        const audioEl = new Audio();
+        audioEl.src = URL.createObjectURL(selectedFile);
+        audioEl.addEventListener('loadedmetadata', () => {
+          if (!isNaN(audioEl.duration) && audioEl.duration > 0) {
+            detectedDurationSeconds = Math.round(audioEl.duration);
+            if (form.elements.duration_seconds) {
+              form.elements.duration_seconds.value = detectedDurationSeconds;
+            }
+          }
+        });
+      } catch (_) {
+        // still ok, server tries to read metadata
+      }
       // Do not pre-fill title from filename – user should enter display name (e.g. "Einführung") so it shows correctly everywhere
       step1.classList.remove('active');
       step2.classList.add('active');
       btnNext.style.display = 'none';
       btnPublish.style.display = 'inline-block';
+      if (stepPill1 && stepPill2) {
+        stepPill1.classList.remove('active');
+        stepPill2.classList.add('active');
+      }
     };
 
     form.onsubmit = async (e) => {
@@ -195,7 +382,9 @@
         });
         if (handleAuthError(res, status)) return;
         if (res.ok) {
-          status.textContent = 'Gespeichert.';
+          status.textContent = 'Gespeichert. Du wirst zum Dashboard weitergeleitet, wo die Statistik aktualisiert wird.';
+          status.style.fontWeight = '600';
+          btnPublish.disabled = true;
           setTimeout(() => location.href = '/admin/', 1500);
         } else {
           status.textContent = 'Fehler: ' + ((await res.json()).error || res.statusText);
@@ -212,9 +401,14 @@
       fd.append('title', form.elements.title.value);
       fd.append('description', form.elements.description.value);
       if (form.elements.series.value.trim()) fd.append('series', form.elements.series.value.trim());
+      if (form.elements.category && form.elements.category.value.trim()) fd.append('category', form.elements.category.value.trim());
       if (form.elements.class_info.value.trim()) fd.append('class_info', form.elements.class_info.value.trim());
-      if (form.elements.duration_seconds.value) fd.append('duration_seconds', form.elements.duration_seconds.value);
-
+      if (form.elements.spotify_url && form.elements.spotify_url.value.trim()) fd.append('spotify_url', form.elements.spotify_url.value.trim());
+      if (form.elements.apple_url && form.elements.apple_url.value.trim()) fd.append('apple_url', form.elements.apple_url.value.trim());
+      if (form.elements.youtube_url && form.elements.youtube_url.value.trim()) fd.append('youtube_url', form.elements.youtube_url.value.trim());
+      if (detectedDurationSeconds && Number.isFinite(detectedDurationSeconds)) {
+        fd.append('duration_seconds', String(detectedDurationSeconds));
+      }
       const res = await fetch(API + '/episodes', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + getToken() },
@@ -223,7 +417,10 @@
 
       if (handleAuthError(res, status)) return;
       if (res.ok) {
-        status.textContent = 'Hochgeladen! Der Podcast erscheint jetzt auf der Website.';
+        status.textContent = 'Fertig! Der Podcast ist gespeichert. Du wirst gleich zum Dashboard weitergeleitet und die „Streambaren Stunden“ werden automatisch aktualisiert.';
+        status.style.fontWeight = '600';
+        btnPublish.disabled = true;
+        btnNext.disabled = true;
         setTimeout(() => location.href = '/admin/', 2000);
       } else {
         const err = await res.json();
