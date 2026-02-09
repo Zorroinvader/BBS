@@ -17,6 +17,85 @@ const PUB_PATH = KEY_PATH + '.pub';
 
 const AUTH_KEYS_ENTRY = 'restrict,permitopen="localhost:5432"';
 
+const SSH_KEYGEN_PATHS = [
+  '/usr/bin/ssh-keygen',
+  '/usr/local/bin/ssh-keygen',
+  'ssh-keygen',
+];
+
+function getSshKeygenPath() {
+  for (const p of SSH_KEYGEN_PATHS) {
+    try {
+      execSync(p, ['-V'], { stdio: 'pipe', encoding: 'utf8' });
+      return p;
+    } catch (_) {}
+  }
+  return null;
+}
+
+function tryInstallOpenssh() {
+  if (os.platform() !== 'linux' && os.platform() !== 'win32') return false;
+
+  if (os.platform() === 'linux') {
+    const installers = [
+      { cmd: 'apt-get', args: ['install', '-y', 'openssh-client'] },
+      { cmd: 'apt', args: ['install', '-y', 'openssh-client'] },
+      { cmd: 'dnf', args: ['install', '-y', 'openssh-clients'] },
+      { cmd: 'yum', args: ['install', '-y', 'openssh-clients'] },
+      { cmd: 'pacman', args: ['-S', '--noconfirm', 'openssh'] },
+      { cmd: 'zypper', args: ['install', '-y', 'openssh'] },
+      { cmd: 'apk', args: ['add', '--no-cache', 'openssh-client'] },
+    ];
+    for (const { cmd, args } of installers) {
+      try {
+        execSync(cmd, args.includes('--noconfirm') ? ['-V'] : ['--version'], { stdio: 'pipe' });
+        console.log('Installiere openssh-client mit ' + cmd + '... (ggf. sudo-Passwort eingeben)');
+        execSync('sudo', [cmd, ...args], { stdio: 'inherit' });
+        return true;
+      } catch (_) {}
+    }
+  }
+
+  if (os.platform() === 'win32') {
+    try {
+      execSync('winget', ['--version'], { stdio: 'pipe', encoding: 'utf8' });
+      console.log('Installiere OpenSSH mit winget...');
+      execSync('winget install Microsoft.OpenSSH.Beta --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
+      return true;
+    } catch (_) {}
+  }
+
+  return false;
+}
+
+function ensureSshKeygen() {
+  let cmd = getSshKeygenPath();
+  if (cmd) return cmd;
+
+  console.log('');
+  console.log('ssh-keygen nicht gefunden. Versuche automatische Installation...');
+  if (tryInstallOpenssh()) {
+    cmd = getSshKeygenPath();
+    if (cmd) {
+      console.log('openssh-client installiert.');
+      return cmd;
+    }
+  }
+
+  console.error('');
+  console.error('ssh-keygen ist nicht installiert. Manuelle Installation:');
+  if (os.platform() === 'linux') {
+    console.error('  Debian/Ubuntu:  sudo apt install openssh-client');
+    console.error('  Fedora/RHEL:    sudo dnf install openssh-clients');
+    console.error('  Arch:           sudo pacman -S openssh');
+    console.error('  openSUSE:       sudo zypper install openssh');
+  } else if (os.platform() === 'win32') {
+    console.error('  winget install Microsoft.OpenSSH.Beta');
+  }
+  console.error('');
+  throw new Error('ssh-keygen nicht gefunden');
+}
+
 function ensureSshDir() {
   if (!fs.existsSync(SSH_DIR)) {
     fs.mkdirSync(SSH_DIR, { mode: 0o700 });
@@ -29,6 +108,7 @@ function getAuthorizedKeysPath() {
 }
 
 function generateKeyPair() {
+  const sshKeygen = ensureSshKeygen();
   ensureSshDir();
   if (fs.existsSync(KEY_PATH)) {
     return { generated: false, keyPath: KEY_PATH };
@@ -37,7 +117,7 @@ function generateKeyPair() {
   function runSshKeygen(type, bits = null) {
     const args = ['-t', type, '-f', KEY_PATH, '-N', '', '-C', 'podcast-tunnel'];
     if (bits && type === 'rsa') args.splice(2, 0, '-b', String(bits));
-    return execSync('ssh-keygen', args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    return execSync(sshKeygen, args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   }
 
   try {
