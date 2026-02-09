@@ -670,33 +670,46 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 `;
   fs.writeFileSync(ENV_PATH, env);
 
-  print('\nStarte SSH-Tunnel...');
+  print('\nStarte SSH-Tunnel zu ' + bundle.ssh_host + '...');
   const tunnel = spawn('ssh', [
     '-o', 'StrictHostKeyChecking=accept-new',
     '-o', 'BatchMode=yes',
+    '-o', 'ConnectTimeout=10',
     '-L', `${localPort}:localhost:${bundle.db_port || 5432}`,
     '-i', keyPath,
     '-N',
     `${bundle.ssh_user}@${bundle.ssh_host}`,
-  ], { stdio: 'pipe', cwd: ROOT });
+  ], { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT });
+
+  let stderrBuf = '';
+  tunnel.stderr.on('data', (ch) => {
+    stderrBuf += ch.toString();
+    process.stderr.write(ch);
+  });
 
   tunnel.on('error', (err) => {
     print('SSH-Tunnel Fehler: ' + err.message);
-    print('Prüfe: SSH_HOST erreichbar? Schlüssel korrekt?');
+    print('Prüfe: Ist ssh installiert? (OpenSSH)');
     process.exit(1);
   });
 
   let tunnelReady = false;
-  tunnel.stderr.on('data', (ch) => {
-    const s = ch.toString();
-    if (s.includes('Permission denied') || s.includes('Connection refused')) {
-      print('SSH-Verbindung fehlgeschlagen: ' + s.trim());
-    }
+  tunnel.on('close', (code, signal) => {
+    if (!tunnelReady) return;
+    if (code !== 0) print('\nSSH-Tunnel wurde beendet (Code: ' + code + ').');
   });
 
-  await new Promise((r) => setTimeout(r, 2000));
-  if (tunnel.killed || !tunnel.connected) {
+  await new Promise((r) => setTimeout(r, 2500));
+  if (tunnel.killed || !tunnel.connected || (tunnel.exitCode != null && tunnel.exitCode !== 0)) {
+    print('');
     print('SSH-Tunnel konnte nicht gestartet werden.');
+    if (stderrBuf.trim()) print('SSH-Ausgabe: ' + stderrBuf.trim().split('\n').join(' '));
+    print('');
+    print('Mögliche Ursachen:');
+    print('  - Host ' + bundle.ssh_host + ' nicht erreichbar (Netzwerk, Firewall?)');
+    print('  - Bei Remote: Läuft der Reverse-Tunnel auf dem DB-Rechner?');
+    print('  - SSH-Schlüssel oder Benutzer falsch?');
+    print('  - Test: ssh -i "' + keyPath + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
     process.exit(1);
   }
   tunnelReady = true;
