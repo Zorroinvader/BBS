@@ -8,10 +8,30 @@
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { execSync, spawn } = require('child_process');
+
+function checkPortReachable(host, port, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const t = setTimeout(() => {
+      socket.destroy();
+      resolve(false);
+    }, timeoutMs);
+    socket.connect(port, host, () => {
+      clearTimeout(t);
+      socket.destroy();
+      resolve(true);
+    });
+    socket.on('error', () => {
+      clearTimeout(t);
+      resolve(false);
+    });
+  });
+}
 
 const ROOT = path.join(__dirname, '..');
 const ENV_PATH = path.join(ROOT, '.env');
@@ -408,6 +428,21 @@ async function setupDbLocal(rl) {
   if (jwtSecret) bundle.jwt_secret = jwtSecret;
   fs.writeFileSync(CREDS_PATH, JSON.stringify(bundle, null, 2), { mode: 0o600 });
 
+  print('Prüfe SSH-Erreichbarkeit (Port 22)...');
+  const sshReachable = await checkPortReachable('127.0.0.1', 22);
+  if (sshReachable) {
+    print('  SSH-Server erreichbar. App kann per ssh_host=' + dbHost + ' verbinden.');
+  } else {
+    print('');
+    print('  WARNUNG: SSH-Server (Port 22) nicht erreichbar!');
+    print('  Die App wird keine Verbindung herstellen können.');
+    print('  Prüfe auf dem DB-Rechner:');
+    print('    - Linux: sudo systemctl status sshd  bzw.  sudo systemctl start sshd');
+    print('    - Windows: OpenSSH-Server-Dienst starten');
+    print('    - Firewall: Port 22 muss erlaubt sein');
+    print('');
+  }
+
   printTransferFiles(dbHost, false);
 
   print('Nächste Schritte:');
@@ -480,6 +515,14 @@ async function setupOnlyDbSsh(rl) {
   const bundle = createCredentialsBundle(dbPassword, vpsHost, vpsUser, 5432);
   if (jwtSecret) bundle.jwt_secret = jwtSecret;
   fs.writeFileSync(CREDS_PATH, JSON.stringify(bundle, null, 2), { mode: 0o600 });
+
+  print('Prüfe VPS-Erreichbarkeit (Port 22)...');
+  const vpsReachable = await checkPortReachable(vpsHost, 22);
+  if (vpsReachable) {
+    print('  VPS ' + vpsHost + ' erreichbar.');
+  } else {
+    print('  Hinweis: VPS ' + vpsHost + ' nicht erreichbar (Port 22). Netzwerk/Firewall prüfen.');
+  }
 
   printTransferFiles(vpsHost, true);
   printReverseSshInstructions(vpsHost, vpsUser, getPublicKey());
@@ -669,6 +712,22 @@ DATABASE_URL=postgresql://podcast:${bundle.db_password}@localhost:${localPort}/p
 ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
 `;
   fs.writeFileSync(ENV_PATH, env);
+
+  print('\nPrüfe Erreichbarkeit von ' + bundle.ssh_host + ' (Port 22)...');
+  const hostReachable = await checkPortReachable(bundle.ssh_host, 22);
+  if (!hostReachable) {
+    print('');
+    print('Host ' + bundle.ssh_host + ' auf Port 22 nicht erreichbar.');
+    print('Mögliche Ursachen:');
+    print('  - Gleiches Netzwerk: SSH-Server auf dem DB-Rechner läuft nicht');
+    print('    → DB-Rechner: sudo systemctl start sshd  (Linux)');
+    print('  - Remote: Reverse-Tunnel auf dem DB-Rechner nicht gestartet');
+    print('    → DB-Rechner: node scripts/reverse-ssh-tunnel.js');
+    print('  - Firewall blockiert Port 22');
+    print('');
+    process.exit(1);
+  }
+  print('  Host erreichbar.');
 
   print('\nStarte SSH-Tunnel zu ' + bundle.ssh_host + '...');
   const tunnel = spawn('ssh', [
