@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * BBS Podcast Platform - Setup Script
- * Usage: node scripts/setup.js --dev | --prod | --db-only | --app-only | --app-only-ssh | ...
+ * Usage: node scripts/setup.js --dev | --local | --prod | --db-only | --app-only | ...
+ * --local:        DB + App on this device (SQLite + app via Docker; same as --dev)
+ * --dev:          Development setup (SQLite, Docker, localhost)
  * --db-only:      DB only (no SSH, direct connection)
  * --app-only:     App only (no SSH, direct DB connection)
  * --app-only-ssh: App only via SSH tunnel (optional, for remote/same-network secure access)
@@ -504,14 +506,37 @@ DB_PATH=./data/podcasts.db
   } catch (e) {
     warn('npm install failed – run it manually.');
   }
+  step('Ensuring data directory exists...');
+  const dataDir = path.join(ROOT, 'data');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    success('Created ./data');
+  } else {
+    success('./data exists');
+  }
   step('Starting Docker Compose...');
   try {
     await ensureDockerReady();
-    execSync('docker compose up -d', { cwd: ROOT, stdio: 'inherit' });
-    success('Docker Compose started – app is running');
+    execSync('docker compose up -d --build', { cwd: ROOT, stdio: 'inherit' });
+    success('Docker Compose started.');
   } catch (e) {
-    warn('Docker Compose failed – run manually: docker compose up -d');
-    console.log(col('  Or start with:', 'dim') + ' npm start');
+    warn('Docker Compose failed – run manually: docker compose up -d --build');
+    console.log(col('  Or run without Docker:', 'dim') + ' npm start');
+    console.log('');
+    printAppLink('http://localhost:3000', false);
+    return;
+  }
+
+  step('Waiting for app to be ready...');
+  try {
+    await waitForApp('http://localhost:3000', 45);
+    success('App is running.');
+  } catch (e) {
+    console.log('');
+    warn('App did not respond in time. The container may have crashed.');
+    console.log(col('  Check logs:', 'dim') + ' docker compose logs -f');
+    console.log(col('  Or run without Docker:', 'dim') + ' npm start  (uses SQLite from ./data)');
+    console.log('');
   }
   console.log('');
   success('Development setup complete!');
@@ -1185,6 +1210,7 @@ async function runDockerComposeStart(rl) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const isLocal = args.includes('--local');
   const isDev = args.includes('--dev');
   const isProd = args.includes('--prod');
   const isOnlyDb = args.includes('--only-db') || args.includes('--db-only');
@@ -1193,7 +1219,8 @@ async function main() {
   const isDbOnlySsh = args.includes('--db-only-ssh');
   const isAppOnlySsh = args.includes('--app-only-ssh');
 
-  const modes = [isDev, isProd, isOnlyDb, isDbLocal, isAppOnly, isDbOnlySsh, isAppOnlySsh].filter(Boolean);
+  const isLocalOrDev = isLocal || isDev;
+  const modes = [isLocalOrDev, isProd, isOnlyDb, isDbLocal, isAppOnly, isDbOnlySsh, isAppOnlySsh].filter(Boolean);
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -1213,6 +1240,7 @@ async function main() {
       console.log('');
     }
     const choices = [
+      { label: 'DB + App on this device (SQLite + app, Docker)', value: 'local' },
       { label: 'DB only (PostgreSQL)', value: 'db-only' },
       { label: 'App only (connects to remote DB)', value: 'app-only' },
       { label: 'DB + SSH (same network)', value: 'db-local' },
@@ -1226,7 +1254,7 @@ async function main() {
       process.exit(0);
     }
     try {
-      if (choice === 'dev') await setupDev(rl);
+      if (choice === 'local' || choice === 'dev') await setupDev(rl);
       else if (choice === 'prod') await setupProd(rl);
       else if (choice === 'db-only') await setupOnlyDb(rl);
       else if (choice === 'db-local') await setupDbLocal(rl);
@@ -1246,7 +1274,7 @@ async function main() {
   banner();
 
   try {
-    if (isDev) await setupDev(rl);
+    if (isLocalOrDev) await setupDev(rl);
     else if (isProd) await setupProd(rl);
     else if (isOnlyDb) await setupOnlyDb(rl);
     else if (isDbLocal) await setupDbLocal(rl);

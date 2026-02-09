@@ -1,10 +1,13 @@
 :root {
+  /* BBS II Wolfsburg – institutional blue and warm off-white (aligned with bbs2-wob.de) */
   --color-primary: #1e3a5f;
   --color-primary-hover: #152a45;
-  --color-white: #FFFFFF;
-  --color-base: #FBFAF3;
-  --color-text: #111111;
-  --color-text-secondary: #686868;
-  --color-border: #ddd;
-  --font-family: 'Manrope', sans-serif;
+  --color-white: #ffffff;
+  --color-base: #f5f4ef;
+  --color-text: #222;
+  --color-text-secondary: #555;
+  --color-border: #d0cec8;
+  --font-family: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
+  /* Header background (local copy so it loads fully) – overlay keeps text readable */
+  --header-bg-image: url('/images/header-bg.jpg');
 }

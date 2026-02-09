@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const episodeService = require('../services/episodeService');
-const { audioUpload } = require('../middleware/upload');
+const { episodeUpload, artworkUpload } = require('../middleware/upload');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const config = require('../config');
 
@@ -21,6 +21,8 @@ function toPublicEpisode(ep) {
     id: ep.id,
     title: ep.title,
     description: ep.description,
+    series: ep.series || null,
+    classInfo: ep.class_info || null,
     audioUrl: getPublicUrl(ep.audio_path),
     artworkUrl: ep.artwork_path ? getPublicUrl(ep.artwork_path) : null,
     durationSeconds: ep.duration_seconds,
@@ -33,7 +35,9 @@ router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
-    const { episodes, total } = await episodeService.getAllEpisodes({ page, limit });
+    const series = req.query.series ? String(req.query.series).trim() : undefined;
+    const q = req.query.q ? String(req.query.q).trim() : undefined;
+    const { episodes, total } = await episodeService.getAllEpisodes({ page, limit, series, q });
     const totalNum = typeof total === 'string' ? parseInt(total) : Number(total);
     const publicEpisodes = episodes.map(toPublicEpisode);
     res.json({
@@ -42,6 +46,15 @@ router.get('/', async (req, res) => {
       page,
       limit,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/meta/series', async (req, res) => {
+  try {
+    const series = await episodeService.getDistinctSeries();
+    res.json({ series });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -57,23 +70,34 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', ...adminOnly, audioUpload.single('audio'), async (req, res) => {
+router.post('/', ...adminOnly, episodeUpload, async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Audio file required' });
-    const title = req.body.title || req.file.originalname;
+    const audioFile = req.files && req.files.audio && req.files.audio[0];
+    if (!audioFile) return res.status(400).json({ error: 'Audio file required' });
+    const title = (req.body.title && String(req.body.title).trim()) ? String(req.body.title).trim() : null;
+    if (!title) return res.status(400).json({ error: 'Title (name of the episode) is required. Please enter a display name, e.g. "Einführung".' });
     const description = req.body.description || '';
+    const series = req.body.series ? String(req.body.series).trim() : null;
+    const classInfo = req.body.class_info ? String(req.body.class_info).trim() : null;
     const durationSeconds = req.body.duration_seconds ? parseInt(req.body.duration_seconds) : null;
-    const artworkPath = req.body.artwork_path || null;
     const uploadsDir = path.join(__dirname, '../../uploads');
-    const audioRel = path.relative(uploadsDir, req.file.path).replace(/\\/g, '/');
+    const audioRel = path.relative(uploadsDir, audioFile.path).replace(/\\/g, '/');
+
+    let artworkPath = null;
+    const artworkFile = req.files && req.files.artwork && req.files.artwork[0];
+    if (artworkFile) {
+      artworkPath = path.relative(uploadsDir, artworkFile.path).replace(/\\/g, '/');
+    }
 
     const episode = await episodeService.createEpisode({
-      title,
+      title: title,
       description,
       audio_path: audioRel,
       artwork_path: artworkPath,
       duration_seconds: durationSeconds,
       created_by: req.user?.id,
+      series,
+      class_info: classInfo,
     });
     res.status(201).json(toPublicEpisode(episode));
   } catch (err) {
@@ -86,6 +110,20 @@ router.patch('/:id', ...adminOnly, async (req, res) => {
     const ep = await episodeService.updateEpisode(req.params.id, req.body);
     if (!ep) return res.status(404).json({ error: 'Episode not found' });
     res.json(toPublicEpisode(ep));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/artwork', ...adminOnly, artworkUpload.single('artwork'), async (req, res) => {
+  try {
+    const ep = await episodeService.getEpisodeById(req.params.id);
+    if (!ep) return res.status(404).json({ error: 'Episode not found' });
+    if (!req.file) return res.status(400).json({ error: 'Artwork file required' });
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    const artworkRel = path.relative(uploadsDir, req.file.path).replace(/\\/g, '/');
+    const updated = await episodeService.updateEpisode(req.params.id, { artwork_path: artworkRel });
+    res.json(toPublicEpisode(updated));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

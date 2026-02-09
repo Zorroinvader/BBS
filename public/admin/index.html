@@ -6,51 +6,78 @@
   <title>Admin – BBS II Wolfsburg Podcasts</title>
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
   <style>
-    .admin-form { max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .admin-form input { width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--color-border); border-radius: 4px; }
-    .admin-form button { width: 100%; padding: 0.75rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .admin-form button:hover { background: var(--color-primary-hover); }
+    .admin-form { max-width: 400px; padding: 2rem; }
+    .admin-form input { width: 100%; padding: 0.6rem; margin-bottom: 1rem; border: 1px solid var(--color-border); border-radius: 8px; }
+    .admin-form button[type="submit"] { width: 100%; padding: 0.75rem; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .admin-form button[type="submit"]:hover { background: var(--color-primary-hover); }
     #dashboard { display: none; }
-    .episode-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
-    .episode-row a { margin-left: 0.5rem; }
+    .episode-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); }
+    .episode-row .actions { display: flex; gap: 0.5rem; align-items: center; }
+    .episode-row .btn-edit { padding: 0.4rem 0.85rem; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; font-size: 0.875rem; font-weight: 600; }
+    .episode-row .btn-edit:hover { background: var(--color-primary-hover); color: white; }
+    .episode-row .btn-delete { padding: 0.4rem 0.85rem; background: #c53030; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.875rem; }
+    .episode-row .btn-delete:hover { background: #9b2226; color: white; }
+    #delete-toast { position: fixed; bottom: 2rem; right: 2rem; background: #2d5016; color: white; padding: 0.75rem 1.25rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; z-index: 1000; }
+    #delete-toast.show { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
-<body>
+<body class="admin-page">
   <header class="site-header">
-    <a href="/" class="site-logo">
-      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
-      <span>Admin</span>
-    </a>
-    <nav class="site-nav">
-      <a href="/">Zur Startseite</a>
-      <span id="user-email"></span>
-      <a href="#" id="logout">Abmelden</a>
-    </nav>
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="container">
-    <div id="login-form" class="admin-form">
-      <h2>Anmelden</h2>
-      <p id="session-expired" style="color:#c55;background:#fdd;padding:0.5rem;border-radius:4px;display:none;">Session abgelaufen. Bitte erneut anmelden.</p>
+  <div id="login-wrap" style="max-width: 400px; margin: 3rem auto; padding: 0 1rem;">
+    <div id="login-form" class="admin-form" style="background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+      <h2 style="color: var(--color-text); margin-top: 0;">Anmelden</h2>
+      <p id="session-expired" style="color:#c55;background:#fdd;padding:0.5rem;border-radius:8px;display:none;">Session abgelaufen. Bitte erneut anmelden.</p>
       <form id="login">
         <input type="email" name="email" placeholder="E-Mail" required>
         <input type="password" name="password" placeholder="Passwort" required>
-        <button type="submit">Anmelden</button>
+        <button type="submit" style="background: var(--color-primary); color: white;">Anmelden</button>
       </form>
-      <p id="login-error" style="color:red;display:none;"></p>
+      <p id="login-error" style="color: #c53030; display: none;"></p>
     </div>
+  </div>
 
-    <div id="dashboard">
-      <h1>Admin Dashboard</h1>
-      <p>
-        <a href="upload.html" class="btn btn-primary">Neuen Podcast hochladen</a>
-        <a href="db-log.html" class="btn" style="margin-left:0.5rem;">Live DB-Log</a>
+  <div id="dashboard" class="admin-layout" style="display: none;">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Admin</li>
+          <li><a href="/admin/" class="active">Dashboard</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
+      <h1>Dashboard</h1>
+      <p style="margin: 1rem 0;">
+        <a href="upload.html" class="btn">Neuen Podcast hochladen</a>
+        <a href="db-log.html" class="btn btn-secondary" style="margin-left: 0.5rem;">Live DB-Log</a>
       </p>
       <h2>Episoden verwalten</h2>
       <div id="episodes-list"></div>
-    </div>
-  </main>
+      <div id="delete-toast">Episode gelöscht.</div>
+    </main>
+  </div>
 
   <script>
     const API = '/api';
@@ -73,8 +100,8 @@
       document.getElementById('session-expired').style.display = 'block';
     }
     if (getToken()) {
-      loginForm.style.display = 'none';
-      dashboard.style.display = 'block';
+      document.getElementById('login-wrap').style.display = 'none';
+      dashboard.style.display = 'flex';
       loadEpisodes();
     }
 
@@ -90,8 +117,8 @@
       if (res.ok) {
         setToken(data.token);
         document.getElementById('user-email').textContent = data.user.email;
-        loginForm.style.display = 'none';
-        dashboard.style.display = 'block';
+        document.getElementById('login-wrap').style.display = 'none';
+        dashboard.style.display = 'flex';
         loadEpisodes();
       } else {
         document.getElementById('login-error').textContent = data.error || 'Anmeldung fehlgeschlagen';
@@ -110,12 +137,12 @@
       const data = await res.json();
       const list = document.getElementById('episodes-list');
       list.innerHTML = (data.episodes || []).map(ep => `
-        <div class="episode-row">
+        <div class="episode-row" data-id="${ep.id}">
           <span>${escapeHtml(ep.title)}</span>
-          <span>
-            <a href="#" onclick="editEpisode(${ep.id}); return false;">Bearbeiten</a>
-            <a href="#" onclick="deleteEpisode(${ep.id}); return false;" style="color:red;">Löschen</a>
-          </span>
+          <div class="actions">
+            <a href="upload.html?id=${ep.id}" class="btn-edit">Bearbeiten</a>
+            <button type="button" class="btn-delete" onclick="deleteEpisode(${ep.id})">Löschen</button>
+          </div>
         </div>
       `).join('') || '<p>Noch keine Episoden.</p>';
     }
@@ -127,14 +154,20 @@
     }
 
     async function deleteEpisode(id) {
-      if (!confirm('Episoden wirklich löschen?')) return;
+      if (!confirm('Episode wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
       const res = await fetch(API + '/episodes/' + id, { method: 'DELETE', headers: authHeaders() });
       if (res.status === 401) {
         clearToken();
         location.href = '/admin/?expired=1';
         return;
       }
-      loadEpisodes();
+      if (res.status === 204 || res.ok) {
+        const toast = document.getElementById('delete-toast');
+        if (toast) { toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
+        loadEpisodes();
+      } else {
+        alert('Löschen fehlgeschlagen.');
+      }
     }
 
     function editEpisode(id) {

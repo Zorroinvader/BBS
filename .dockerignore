@@ -1,0 +1,14 @@
+# Prevent host node_modules from overwriting container-built native addons (e.g. better-sqlite3)
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+*.md
+.dockerignore
+Dockerfile*
+docker-compose*
+.docker
+data
+uploads

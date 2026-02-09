@@ -13,6 +13,9 @@ async function createAdapter() {
     for (const stmt of initSql.split(';').map(s => s.trim()).filter(Boolean)) {
       await pool.query(stmt);
     }
+    await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS series TEXT');
+    await pool.query('ALTER TABLE episodes ADD COLUMN IF NOT EXISTS class_info TEXT');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series)');
 
     return {
       query: async (sql, params = []) => {
@@ -51,6 +54,11 @@ async function createAdapter() {
   const db = new Database(config.dbPath);
   const initSql = require('fs').readFileSync(require('path').join(__dirname, 'init-sqlite.sql'), 'utf8');
   db.exec(initSql);
+  // Migration: add series, class_info if missing (existing DBs)
+  const cols = db.prepare('PRAGMA table_info(episodes)').all().map((r) => r.name);
+  if (!cols.includes('series')) db.prepare('ALTER TABLE episodes ADD COLUMN series TEXT').run();
+  if (!cols.includes('class_info')) db.prepare('ALTER TABLE episodes ADD COLUMN class_info TEXT').run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series)').run();
 
   return {
     query: (sql, params = []) => Promise.resolve({ rows: db.prepare(sql).all(...params) }),

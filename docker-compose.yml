@@ -13,6 +13,8 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
+      # Mount public so HTML/CSS/JS changes appear without rebuilding
+      - ./public:/app/public
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health || exit 1"]
       interval: 30s

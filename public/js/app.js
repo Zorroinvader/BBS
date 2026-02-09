@@ -9,11 +9,14 @@ function renderPodcastCard(ep) {
   const thumb = ep.artworkUrl || 'https://bbs2-wob.de/wp-content/uploads/2023/08/BBS-II_Podcast_Logo_2023.png';
   const duration = formatDuration(ep.durationSeconds);
   const date = ep.publishDate ? new Date(ep.publishDate).toLocaleDateString('de-DE') : '';
+  const seriesTag = ep.series ? `<span class="tag tag-series">${escapeHtml(ep.series)}</span>` : '';
+  const classTag = ep.classInfo ? `<span class="tag tag-class">${escapeHtml(ep.classInfo)}</span>` : '';
   return `
     <div class="podcast-card" data-id="${ep.id}">
       <img class="thumb" src="${thumb}" alt="">
       <div class="info">
         <h3 class="title">${escapeHtml(ep.title)}</h3>
+        ${(seriesTag || classTag) ? `<div class="tags">${seriesTag}${classTag}</div>` : ''}
         <p class="desc">${escapeHtml(ep.description || '').slice(0, 120)}${(ep.description || '').length > 120 ? '...' : ''}</p>
         <div class="meta">${duration} ${date ? '| ' + date : ''}</div>
         <div class="platforms" style="margin-top:0.5rem;font-size:0.75rem;">

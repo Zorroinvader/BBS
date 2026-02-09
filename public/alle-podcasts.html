@@ -4,21 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Alle Podcasts – BBS II Wolfsburg</title>
+  <link rel="alternate" type="application/rss+xml" title="BBS2 Podcasts RSS" href="/feed.xml">
+  <link rel="preload" href="/images/header-bg.jpg" as="image">
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
   <header class="site-header">
-    <a href="https://bbs2-wob.de/" class="site-logo">
-      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
-      <span>Berufsbildende Schulen</span>
-    </a>
-    <nav class="site-nav">
-      <a href="/">Start</a>
-      <a href="/alle-podcasts.html">Alle Podcasts</a>
-      <a href="/statistik.html">Statistik</a>
-      <a href="/admin/" class="btn btn-primary">Anmelden</a>
-    </nav>
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/">Start</a>
+        <a href="/alle-podcasts.html">Alle Podcasts</a>
+        <a href="/statistik.html">Statistik</a>
+        <a href="/feed.xml" class="nav-link-rss" title="RSS-Feed">RSS</a>
+        <a href="/admin/" class="btn btn-primary">Anmelden</a>
+      </nav>
+    </div>
   </header>
 
   <section class="hero">
@@ -27,11 +35,24 @@
 
   <main class="container">
     <section class="section">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-        <h2 style="margin: 0;">Alle Podcasts</h2>
-        <div class="view-toggle">
-          <button id="btn-list" title="Listenansicht">≡</button>
-          <button id="btn-grid" title="Rasteransicht">⊞</button>
+      <div class="section-toolbar">
+        <h2 class="section-title">Alle Podcasts</h2>
+        <div class="toolbar-controls toolbar-controls-full">
+          <div class="search-bar-wrap inline-search">
+            <label for="search-all" class="visually-hidden">Suchen</label>
+            <input type="search" id="search-all" class="search-input" placeholder="Suchen…">
+            <button type="button" id="search-btn" class="search-btn" aria-label="Suchen">
+              <span class="search-btn-label">Suchen</span>
+            </button>
+          </div>
+          <label for="filter-series" class="filter-label">Reihe:</label>
+          <select id="filter-series" class="filter-select">
+            <option value="">Alle</option>
+          </select>
+          <div class="view-toggle">
+            <button id="btn-list" title="Listenansicht">≡</button>
+            <button id="btn-grid" title="Rasteransicht">⊞</button>
+          </div>
         </div>
       </div>
       <div id="podcasts" class="podcasts-list"></div>
@@ -55,7 +76,8 @@
         Dieselstraße 46, 38446 Wolfsburg | Tel 05361 85692-0
       </div>
     </div>
-    <div style="margin-top: 1rem;">
+    <div class="footer-links">
+      <a href="/feed.xml">RSS-Feed</a> |
       <a href="https://bbs2-wob.de/impressum/">Impressum</a> |
       <a href="https://bbs2-wob.de/datenschutzerklaerung/">Datenschutzerklärung</a>
     </div>
@@ -68,8 +90,27 @@
     const limit = 10;
     let viewMode = 'list';
 
+    async function loadSeriesFilter() {
+      const res = await fetch(API + '/episodes/meta/series');
+      const data = await res.json();
+      const sel = document.getElementById('filter-series');
+      sel.innerHTML = '<option value="">Alle</option>' + (data.series || []).map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+      sel.onchange = () => { page = 1; load(); };
+    }
+
+    function buildParams() {
+      const series = document.getElementById('filter-series').value;
+      const q = (document.getElementById('search-all') && document.getElementById('search-all').value) ? document.getElementById('search-all').value.trim() : '';
+      const p = new URLSearchParams();
+      if (series) p.set('series', series);
+      if (q) p.set('q', q);
+      return p.toString();
+    }
+
     async function load() {
-      const res = await fetch(`${API}/episodes?page=${page}&limit=${limit}`);
+      const extra = buildParams();
+      const url = `${API}/episodes?page=${page}&limit=${limit}` + (extra ? '&' + extra : '');
+      const res = await fetch(url);
       const data = await res.json();
       const container = document.getElementById('podcasts');
       container.className = viewMode === 'grid' ? 'podcasts-grid' : 'podcasts-list';
@@ -86,7 +127,19 @@
     document.getElementById('prev').onclick = () => { if (page > 1) { page--; load(); } };
     document.getElementById('next').onclick = () => { page++; load(); };
 
-    load();
+    const searchAll = document.getElementById('search-all');
+    if (searchAll) {
+      searchAll.oninput = () => { page = 1; load(); };
+      searchAll.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); page = 1; load(); } };
+    }
+    document.getElementById('search-btn')?.addEventListener('click', () => { page = 1; load(); });
+
+    loadSeriesFilter().then(() => {
+      const params = new URLSearchParams(location.search);
+      if (params.get('series')) document.getElementById('filter-series').value = params.get('series');
+      if (params.get('q') && searchAll) searchAll.value = params.get('q');
+      load();
+    });
   </script>
 </body>
 </html>

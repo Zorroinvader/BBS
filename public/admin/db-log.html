@@ -6,6 +6,7 @@
   <title>DB-Log – BBS II Wolfsburg Podcasts</title>
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
   <style>
     .log-container {
       max-width: 900px;
@@ -38,26 +39,43 @@
     .status-bar.connecting { color: #dcdcaa; }
   </style>
 </head>
-<body>
+<body class="admin-page">
   <header class="site-header">
-    <a href="/" class="site-logo">
-      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
-      <span>Admin – DB-Log</span>
-    </a>
-    <nav class="site-nav">
-      <a href="/admin/">Dashboard</a>
-      <a href="/admin/upload.html">Upload</a>
-      <span id="user-email"></span>
-      <a href="#" id="logout">Abmelden</a>
-    </nav>
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="container">
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Admin</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="db-log.html" class="active">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
     <h1>Live DB-Log – Podcast-Uploads</h1>
     <p>Hier siehst du in Echtzeit, wenn neue Podcasts in die Datenbank hochgeladen werden.</p>
     <div id="status" class="status-bar connecting">Verbinde...</div>
     <div id="log" class="log-container"></div>
-  </main>
+    </main>
+  </div>
 
   <script>
     const API = '/api';

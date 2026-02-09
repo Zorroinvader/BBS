@@ -6,30 +6,51 @@
   <title>Podcast hochladen – Admin</title>
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
   <style>
-    .upload-form { max-width: 600px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .upload-form label { display: block; margin-top: 1rem; }
-    .upload-form input, .upload-form textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; border: 1px solid var(--color-border); border-radius: 4px; }
+    .upload-form { max-width: 600px; padding: 2rem; }
+    .upload-form label { display: block; margin-top: 1rem; color: var(--color-text); }
+    .upload-form input, .upload-form textarea { width: 100%; padding: 0.6rem; margin-top: 0.25rem; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text); }
     .upload-form textarea { min-height: 100px; }
-    .upload-form button { margin-top: 1rem; padding: 0.75rem 1.5rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .upload-form button { margin-top: 1rem; padding: 0.7rem 1.25rem; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
     .upload-form button:hover { background: var(--color-primary-hover); }
     .step { display: none; }
     .step.active { display: block; }
+    .upload-form .hint { display: block; font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 0.25rem; }
+    .current-artwork img { max-width: 160px; max-height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid var(--color-border); }
   </style>
 </head>
-<body>
+<body class="admin-page">
   <header class="site-header">
-    <a href="/admin/" class="site-logo">
-      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
-      <span>Admin – Upload</span>
-    </a>
-    <nav class="site-nav">
-      <a href="/admin/">Dashboard</a>
-      <a href="/">Zur Startseite</a>
-    </nav>
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="container">
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Admin</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="upload.html" class="active">Neuen Podcast hochladen</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
     <div class="upload-form">
       <h1>Podcast hochladen</h1>
       <p>Schritt 1: Audio-Datei hochladen → Schritt 2: Metadaten bearbeiten → Schritt 3: Veröffentlichen</p>
@@ -43,10 +64,19 @@
 
         <div class="step" id="step2">
           <h2>Schritt 2: Metadaten</h2>
-          <label>Titel *</label>
-          <input type="text" name="title" required placeholder="z.B. Folge 1 – Einführung">
+          <label>Name der Episode (wird überall angezeigt, nicht der Dateiname) *</label>
+          <input type="text" name="title" required placeholder="z.B. Einführung oder Folge 1 – Thema">
           <label>Beschreibung</label>
           <textarea name="description" placeholder="Kurzbeschreibung der Episode"></textarea>
+          <label>Welche Reihe / Playlist</label>
+          <input type="text" name="series" id="series" list="series-list" placeholder="z.B. Umwelt, Politik, …">
+          <datalist id="series-list"></datalist>
+          <label>Welche Klasse hat gemacht (optional)</label>
+          <input type="text" name="class_info" placeholder="z.B. BG21, FOS22">
+          <label>Cover-Bild (optional)</label>
+          <div id="current-artwork" class="current-artwork" style="display:none; margin-bottom: 0.5rem;"></div>
+          <input type="file" name="artwork" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <span class="hint">JPG, PNG oder WebP, max. 5 MB. Wird als Vorschaubild der Episode angezeigt.</span>
           <label>Dauer (Sekunden, optional)</label>
           <input type="number" name="duration_seconds" placeholder="z.B. 600 für 10 Min">
         </div>
@@ -55,9 +85,10 @@
         <button type="submit" id="btn-publish" style="display:none;">Veröffentlichen</button>
       </form>
 
-      <p id="status" style="margin-top:1rem;"></p>
+      <p id="status" style="margin-top:1rem; color: var(--color-text);"></p>
     </div>
-  </main>
+    </main>
+  </div>
 
   <script>
     const API = '/api';
@@ -67,6 +98,7 @@
 
     function getToken() { return localStorage.getItem(tokenKey); }
     function clearToken() { localStorage.removeItem(tokenKey); }
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
     if (!getToken()) { window.location = '/admin/'; }
 
     function handleAuthError(res, statusEl) {
@@ -87,6 +119,16 @@
 
     const urlParams = new URLSearchParams(location.search);
     const editId = urlParams.get('id');
+    async function fillSeriesDatalist() {
+      try {
+        const r = await fetch(API + '/episodes/meta/series');
+        const data = await r.json();
+        const list = document.getElementById('series-list');
+        list.innerHTML = (data.series || []).map(s => '<option value="' + escapeHtml(s) + '">').join('');
+      } catch (_) {}
+    }
+    fillSeriesDatalist();
+
     if (editId) {
       document.querySelector('h1').textContent = 'Episoden bearbeiten';
       step1.classList.remove('active');
@@ -97,7 +139,14 @@
       fetch(API + '/episodes/' + editId).then(r => r.json()).then(ep => {
         form.elements.title.value = ep.title;
         form.elements.description.value = ep.description || '';
+        form.elements.series.value = ep.series || '';
+        form.elements.class_info.value = ep.classInfo || '';
         form.elements.duration_seconds.value = ep.durationSeconds || '';
+        const artEl = document.getElementById('current-artwork');
+        if (ep.artworkUrl && artEl) {
+          artEl.style.display = 'block';
+          artEl.innerHTML = '<span class="hint">Aktuelles Cover:</span><br><img src="' + escapeHtml(ep.artworkUrl) + '" alt="">';
+        }
       });
     }
 
@@ -105,7 +154,7 @@
       const fileInput = form.audio;
       if (!fileInput.files.length) { alert('Bitte wähle eine Audio-Datei.'); return; }
       selectedFile = fileInput.files[0];
-      form.elements.title.value = form.elements.title.value || selectedFile.name.replace(/\.[^.]+$/, '');
+      // Do not pre-fill title from filename – user should enter display name (e.g. "Einführung") so it shows correctly everywhere
       step1.classList.remove('active');
       step2.classList.add('active');
       btnNext.style.display = 'none';
@@ -118,12 +167,29 @@
       status.textContent = 'Wird hochgeladen...';
 
       if (editId) {
+        const artworkInput = form.elements.artwork;
+        if (artworkInput && artworkInput.files && artworkInput.files[0]) {
+          const fdArt = new FormData();
+          fdArt.append('artwork', artworkInput.files[0]);
+          const resArt = await fetch(API + '/episodes/' + editId + '/artwork', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + getToken() },
+            body: fdArt
+          });
+          if (handleAuthError(resArt, status)) return;
+          if (!resArt.ok) {
+            status.textContent = 'Fehler Cover: ' + ((await resArt.json()).error || resArt.statusText);
+            return;
+          }
+        }
         const res = await fetch(API + '/episodes/' + editId, {
           method: 'PATCH',
           headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: form.elements.title.value,
             description: form.elements.description.value,
+            series: form.elements.series.value.trim() || undefined,
+            class_info: form.elements.class_info.value.trim() || undefined,
             duration_seconds: form.elements.duration_seconds.value ? parseInt(form.elements.duration_seconds.value) : undefined
           })
         });
@@ -139,8 +205,14 @@
 
       const fd = new FormData();
       fd.append('audio', selectedFile);
+      const artworkInput = form.elements.artwork;
+      if (artworkInput && artworkInput.files && artworkInput.files[0]) {
+        fd.append('artwork', artworkInput.files[0]);
+      }
       fd.append('title', form.elements.title.value);
       fd.append('description', form.elements.description.value);
+      if (form.elements.series.value.trim()) fd.append('series', form.elements.series.value.trim());
+      if (form.elements.class_info.value.trim()) fd.append('class_info', form.elements.class_info.value.trim());
       if (form.elements.duration_seconds.value) fd.append('duration_seconds', form.elements.duration_seconds.value);
 
       const res = await fetch(API + '/episodes', {

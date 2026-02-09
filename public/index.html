@@ -4,46 +4,60 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BBS II Wolfsburg – Unsere Podcasts</title>
+  <link rel="alternate" type="application/rss+xml" title="BBS2 Podcasts RSS" href="/feed.xml">
+  <link rel="preload" href="/images/header-bg.jpg" as="image">
   <link rel="stylesheet" href="/css/variables.css">
   <link rel="stylesheet" href="/css/main.css">
 </head>
-<body>
-  <header class="site-header">
-    <a href="https://bbs2-wob.de/" class="site-logo">
-      <img src="https://bbs2-wob.de/wp-content/uploads/2023/08/logo_bbs2wob.png" alt="BBS II Wolfsburg">
-      <span>Berufsbildende Schulen</span>
-    </a>
-    <nav class="site-nav">
-      <a href="/alle-podcasts.html">Alle Podcasts</a>
-      <a href="/statistik.html">Statistik</a>
-      <a href="/admin/" class="btn btn-primary">Anmelden</a>
-    </nav>
-  </header>
+<body class="home-page">
+  <div class="top-hero">
+    <header class="site-header">
+      <div class="site-header-bg">
+        <img src="/images/header-bg.jpg" alt="BBS II Wolfsburg – Schulgebäude" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+      </div>
+      <div class="site-header-overlay">
+        <a href="/" class="site-logo">
+          <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+          <span>Berufsbildende Schulen</span>
+        </a>
+        <nav class="site-nav">
+          <a href="/alle-podcasts.html">Alle Podcasts</a>
+          <a href="/statistik.html">Statistik</a>
+          <a href="/feed.xml" class="nav-link-rss" title="RSS-Feed abonnieren">RSS</a>
+          <a href="/admin/" class="btn btn-primary">Anmelden</a>
+        </nav>
+      </div>
+    </header>
 
-  <section class="hero">
-    <div>
-      <h1>Unsere Schule – Unsere Podcasts</h1>
-    </div>
-  </section>
-
-  <main class="container">
-    <section class="section">
-      <h2>Hey, willkommen bei den BBS2-Podcasts!</h2>
-      <p>Hier findest du alle Folgen, die an unserer Schule produziert werden – von Interviews bis hin zu spannenden Projekten aus dem Unterricht. Hör rein, entdecke Neues und bleib immer auf dem Laufenden, was an der BBS2 so passiert.</p>
-    </section>
-
-    <section class="section">
-      <h2>Statistik</h2>
-      <div class="stats-grid" id="stats">
-        <div class="stat-card">
-          <div class="value" id="stat-listeners">0</div>
-          <div class="label">Aktive Hörer</div>
-        </div>
-        <div class="stat-card">
-          <div class="value" id="stat-hours">0h</div>
-          <div class="label">Streambare Stunden</div>
+    <section class="hero">
+      <div class="hero-inner">
+        <h1>Unsere Schule – Unsere Podcasts</h1>
+        <p class="hero-sub">Hier findest du alle Folgen, die an der BBS2 produziert werden.</p>
+        <div class="search-bar-wrap">
+          <label for="search-main" class="visually-hidden">Podcasts durchsuchen</label>
+          <input type="search" id="search-main" class="search-input" placeholder="Podcasts durchsuchen (Titel, Beschreibung, Reihe…)">
+          <button type="button" id="search-btn" class="search-btn" aria-label="Suchen">
+            <span class="search-btn-label">Suchen</span>
+          </button>
         </div>
       </div>
+    </section>
+  </div>
+
+  <main class="container">
+    <section class="section intro-section">
+      <h2>Willkommen bei den BBS2-Podcasts</h2>
+      <p>Von Interviews bis zu Projekten aus dem Unterricht – hör rein und bleib auf dem Laufenden, was an der BBS2 passiert.</p>
+    </section>
+
+    <section class="section stats-inline">
+      <p class="stats-plain" id="stats">
+        <span class="stat-num" id="stat-episodes">0</span>
+        <span class="stat-label">Episoden</span>
+        <span class="stat-sep" aria-hidden="true">·</span>
+        <span class="stat-num" id="stat-hours">0</span>
+        <span class="stat-label">Stunden abspielbar</span>
+      </p>
     </section>
 
     <section class="section">
@@ -52,9 +66,15 @@
     </section>
 
     <section class="section">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="margin: 0;">Alle Podcasts</h2>
-        <a href="/alle-podcasts.html">Alle anzeigen</a>
+      <div class="section-toolbar">
+        <h2 class="section-title">Alle Podcasts</h2>
+        <div class="toolbar-controls">
+          <label for="filter-series" class="filter-label">Reihe / Playlist:</label>
+          <select id="filter-series" class="filter-select">
+            <option value="">Alle</option>
+          </select>
+          <a href="/alle-podcasts.html" id="link-alle" class="link-alle">Alle anzeigen</a>
+        </div>
       </div>
       <div id="podcasts-preview" class="podcasts-list"></div>
     </section>
@@ -72,7 +92,8 @@
         Dieselstraße 46, 38446 Wolfsburg | Tel 05361 85692-0
       </div>
     </div>
-    <div style="margin-top: 1rem;">
+    <div class="footer-links">
+      <a href="/feed.xml">RSS-Feed</a> |
       <a href="https://bbs2-wob.de/impressum/">Impressum</a> |
       <a href="https://bbs2-wob.de/datenschutzerklaerung/">Datenschutzerklärung</a>
     </div>
@@ -80,12 +101,14 @@
 
   <script src="/js/app.js"></script>
   <script>
+    const API = '/api';
     (async () => {
-      const API = '/api';
       try {
         const stats = await fetch(API + '/stats').then(r => r.json());
-        document.getElementById('stat-listeners').textContent = stats.activeListeners ?? 0;
-        document.getElementById('stat-hours').textContent = (stats.streamableHours ?? 0) + 'h';
+        const statEp = document.getElementById('stat-episodes');
+        const statH = document.getElementById('stat-hours');
+        if (statEp) statEp.textContent = stats.episodeCount ?? 0;
+        if (statH) statH.textContent = stats.streamableHours ?? 0;
       } catch (_) {}
 
       const ep = await fetch(API + '/episodes?limit=1').then(r => r.json());
@@ -93,9 +116,46 @@
       const latestEl = document.getElementById('latest-upload');
       latestEl.innerHTML = latest ? renderPodcastCard(latest) : '<p>Noch keine Podcasts vorhanden.</p>';
 
+      const seriesRes = await fetch(API + '/episodes/meta/series').then(r => r.json());
+      const seriesSelect = document.getElementById('filter-series');
+      const searchMain = document.getElementById('search-main');
+      const linkAlle = document.getElementById('link-alle');
+      seriesSelect.innerHTML = '<option value="">Alle</option>' + (seriesRes.series || []).map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+      function buildQuery() {
+        const series = seriesSelect.value;
+        const q = (searchMain && searchMain.value) ? searchMain.value.trim() : '';
+        return { series: series || '', q: q };
+      }
+      function updatePreview() {
+        const { series, q } = buildQuery();
+        const params = new URLSearchParams();
+        if (series) params.set('series', series);
+        if (q) params.set('q', q);
+        const url = API + '/episodes?limit=5' + (params.toString() ? '&' + params.toString() : '');
+        fetch(url).then(r => r.json()).then(data => {
+          const previewEl = document.getElementById('podcasts-preview');
+          previewEl.innerHTML = (data.episodes || []).map(renderPodcastCard).join('') || '<p>Keine Podcasts gefunden.</p>';
+        });
+        linkAlle.href = '/alle-podcasts.html' + (params.toString() ? '?' + params.toString() : '');
+      }
+      seriesSelect.onchange = updatePreview;
+      if (searchMain) {
+        searchMain.oninput = updatePreview;
+        searchMain.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); updatePreview(); } };
+      }
+      document.getElementById('search-btn')?.addEventListener('click', updatePreview);
+
       const list = await fetch(API + '/episodes?limit=5').then(r => r.json());
       const previewEl = document.getElementById('podcasts-preview');
       previewEl.innerHTML = (list.episodes || []).map(renderPodcastCard).join('') || '<p>Noch keine Podcasts vorhanden.</p>';
+
+      const urlParams = new URLSearchParams(location.search);
+      const urlSeries = urlParams.get('series');
+      const urlQ = urlParams.get('q');
+      if (urlSeries) seriesSelect.value = urlSeries;
+      if (urlQ && searchMain) searchMain.value = urlQ;
+      if (urlSeries || urlQ) updatePreview();
     })();
   </script>
 </body>

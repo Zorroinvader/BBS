@@ -1,6 +1,8 @@
-FROM node:20-alpine
+# Use Debian-based image so better-sqlite3 native addon works (Alpine/musl causes fcntl64 symbol errors)
+FROM node:20-bookworm-slim
 
-RUN apk add --no-cache wget
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

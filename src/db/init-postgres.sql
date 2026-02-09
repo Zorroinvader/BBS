@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS episodes (
   duration_seconds INTEGER,
   publish_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  series TEXT,
+  class_info TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_episodes_publish ON episodes(publish_date DESC);
+CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series);

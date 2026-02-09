@@ -1,0 +1,220 @@
+/* Admin panel: left sidebar + main content, blue buttons/links on white */
+
+.admin-page body { background: var(--color-base); }
+
+.admin-page .admin-user {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  font-size: 0.85rem;
+}
+
+
+/* Layout: sidebar left, content right */
+.admin-layout {
+  display: flex;
+  min-height: calc(100vh - 60px);
+}
+.admin-sidebar {
+  width: 280px;
+  min-width: 280px;
+  padding: 1.75rem 1.25rem;
+  background: var(--color-white);
+  border-right: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.admin-sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-sidebar-nav li { margin: 0; }
+.admin-sidebar-nav a {
+  display: block;
+  padding: 0.6rem 0.85rem;
+  color: var(--color-text);
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  word-wrap: break-word;
+}
+.admin-sidebar-nav a:hover {
+  background: rgba(30, 58, 95, 0.08);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.admin-sidebar-nav a.active,
+.admin-sidebar-nav a[href]:focus-visible {
+  background: rgba(30, 58, 95, 0.12);
+  color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.admin-sidebar-nav .nav-section {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  padding: 0.75rem 0.75rem 0.35rem;
+  margin-top: 0.5rem;
+}
+.admin-sidebar-nav .nav-section:first-child { margin-top: 0; }
+.admin-main {
+  flex: 1;
+  padding: 2rem 2.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+  background: var(--color-base);
+  color: var(--color-text);
+}
+
+.admin-main > h1 {
+  font-size: 1.45rem;
+  margin-bottom: 0.5rem;
+}
+.admin-main > p {
+  max-width: 60ch;
+  line-height: 1.6;
+}
+.admin-main > p + p {
+  margin-top: 0.25rem;
+}
+
+/* Header look on admin pages:
+   - no photo background
+   - solid BBS blue bar */
+.admin-page .site-header-bg {
+  display: none;
+}
+.admin-page .site-header {
+  position: relative;
+  min-height: 56px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.16);
+}
+.admin-page .site-header-overlay {
+  position: relative;
+  inset: auto;
+  background: linear-gradient(120deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+  padding: 0.5rem 1.75rem;
+}
+.admin-page .site-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.admin-page .site-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: inherit;
+}
+.admin-page .site-logo img {
+  height: 40px;
+}
+.admin-page .site-logo span {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+.admin-page .site-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+.admin-page .site-nav a {
+  color: rgba(255,255,255,0.95);
+}
+.admin-page .site-nav a:hover {
+  text-decoration: none;
+  color: #fff;
+}
+
+/* Buttons and links on white/light: use blue (visible) */
+.admin-main .btn,
+.admin-page .admin-main a.btn {
+  background: var(--color-primary) !important;
+  color: var(--color-white) !important;
+  border: none !important;
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.admin-main .btn:hover,
+.admin-page .admin-main a.btn:hover {
+  background: var(--color-primary-hover) !important;
+  color: var(--color-white) !important;
+  text-decoration: none;
+}
+.admin-main .btn:focus-visible,
+.admin-main a.btn:focus-visible {
+  outline: 3px solid var(--color-primary-hover);
+  outline-offset: 2px;
+}
+.admin-main .btn-secondary {
+  background: transparent !important;
+  color: var(--color-primary) !important;
+  border: 2px solid var(--color-primary) !important;
+}
+.admin-main .btn-secondary:hover {
+  background: rgba(30, 58, 95, 0.08) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Text in admin main: standard dark on light */
+.admin-main h1, .admin-main h2, .admin-main h3 {
+  color: var(--color-text);
+  margin-top: 0;
+}
+.admin-main p, .admin-main label { color: var(--color-text); }
+.admin-main a:not(.btn) { color: var(--color-primary); }
+.admin-main a:not(.btn):hover { text-decoration: underline; }
+
+/* Forms in admin */
+.admin-main .admin-form,
+.admin-main .upload-form {
+  background: var(--color-white);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  color: var(--color-text);
+}
+.admin-main .admin-form label,
+.admin-main .upload-form label { color: var(--color-text); }
+.admin-main .admin-form input,
+.admin-main .upload-form input,
+.admin-main .admin-form textarea,
+.admin-main .upload-form textarea {
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.admin-main .admin-form button[type="submit"],
+.admin-main .upload-form button[type="submit"],
+.admin-main .upload-form #btn-next {
+  background: var(--color-primary) !important;
+  color: var(--color-white) !important;
+  border: none;
+}
+
+@media (max-width: 768px) {
+  .admin-layout { flex-direction: column; }
+  .admin-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 1rem;
+  }
+  .admin-sidebar-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .admin-sidebar-nav li { margin: 0; }
+  .admin-sidebar-nav a { margin-bottom: 0; }
+}

@@ -1,5 +1,19 @@
 # BBS Podcast Platform – Setup-Anleitung
 
+## Admin-Login
+
+Beim ersten Start wird automatisch ein Admin-Benutzer angelegt. **Standard-Zugangsdaten:**
+
+| | |
+|---|---|
+| **E-Mail** | `admin@bbs2-wob.de` |
+| **Passwort** | `admin123` |
+
+→ Anmeldung unter **/admin/** (z. B. `http://localhost:3000/admin/`).  
+**Wichtig:** In Produktion Passwort und ggf. E-Mail ändern (über API oder Datenbank).
+
+---
+
 ## Modi (SSH optional)
 
 | Modus | Befehl | Beschreibung |
