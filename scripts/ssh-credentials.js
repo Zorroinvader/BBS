@@ -159,9 +159,9 @@ function generateKeyPair() {
   }
 
   function runSshKeygen(type, bits = null) {
-    const args = ['-t', type, '-f', KEY_PATH, '-N', '', '-C', 'podcast-tunnel'];
-    if (bits && type === 'rsa') args.splice(2, 0, '-b', String(bits));
-    return execSync(sshKeygen, args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    const bitsArg = bits && type === 'rsa' ? `-b ${bits} ` : '';
+    const cmd = `"${sshKeygen}" -t ${type} ${bitsArg}-f "${KEY_PATH}" -N "" -C podcast-tunnel`;
+    return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], shell: true });
   }
 
   try {
