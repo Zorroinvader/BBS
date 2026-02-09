@@ -587,8 +587,10 @@ function printReverseSshInstructions(vpsHost, vpsUser, publicKey) {
 async function setupAppOnly(rl) {
   print('\n=== Nur App (verbindet zu Remote-DB) ===\n');
   const envContent = loadEnv();
+  // Direct connection always uses PostgreSQL default 5432 (5433 is for SSH tunnel)
+  const defaultPort = (envContent.DB_PORT === '5433') ? '5432' : (envContent.DB_PORT || '5432');
   const dbHost = await ask(rl, 'DB_HOST (IP des DB-Rechners)', envContent.DB_HOST || '');
-  const dbPort = await ask(rl, 'DB_PORT', envContent.DB_PORT || '5432');
+  const dbPort = await ask(rl, 'DB_PORT (5432 für direkte Verbindung)', defaultPort);
   const dbPassword = await ask(rl, 'DB_PASSWORD', envContent.DB_PASSWORD || '');
   const jwtSecret = await ask(rl, 'JWT_SECRET (mind. 32 Zeichen, für Admin-Login)', envContent.JWT_SECRET || '');
   const publicUrl = await ask(rl, 'PUBLIC_URL', envContent.PUBLIC_URL || 'http://localhost:3000');

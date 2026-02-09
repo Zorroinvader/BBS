@@ -66,7 +66,18 @@
     let selectedFile = null;
 
     function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
     if (!getToken()) { window.location = '/admin/'; }
+
+    function handleAuthError(res, statusEl) {
+      if (res.status === 401) {
+        clearToken();
+        if (statusEl) statusEl.textContent = 'Session abgelaufen. Leite zur Anmeldung weiter...';
+        setTimeout(() => { window.location = '/admin/?expired=1'; }, 1500);
+        return true;
+      }
+      return false;
+    }
 
     const form = document.getElementById('upload-form');
     const step1 = document.getElementById('step1');
@@ -116,11 +127,12 @@
             duration_seconds: form.elements.duration_seconds.value ? parseInt(form.elements.duration_seconds.value) : undefined
           })
         });
+        if (handleAuthError(res, status)) return;
         if (res.ok) {
           status.textContent = 'Gespeichert.';
           setTimeout(() => location.href = '/admin/', 1500);
         } else {
-          status.textContent = 'Fehler: ' + (await res.json()).error;
+          status.textContent = 'Fehler: ' + ((await res.json()).error || res.statusText);
         }
         return;
       }
@@ -137,6 +149,7 @@
         body: fd
       });
 
+      if (handleAuthError(res, status)) return;
       if (res.ok) {
         status.textContent = 'Hochgeladen! Der Podcast erscheint jetzt auf der Website.';
         setTimeout(() => location.href = '/admin/', 2000);

@@ -32,6 +32,7 @@
   <main class="container">
     <div id="login-form" class="admin-form">
       <h2>Anmelden</h2>
+      <p id="session-expired" style="color:#c55;background:#fdd;padding:0.5rem;border-radius:4px;display:none;">Session abgelaufen. Bitte erneut anmelden.</p>
       <form id="login">
         <input type="email" name="email" placeholder="E-Mail" required>
         <input type="password" name="password" placeholder="Passwort" required>
@@ -67,6 +68,10 @@
     const loginForm = document.getElementById('login-form');
     const dashboard = document.getElementById('dashboard');
 
+    if (new URLSearchParams(location.search).get('expired') === '1') {
+      clearToken();
+      document.getElementById('session-expired').style.display = 'block';
+    }
     if (getToken()) {
       loginForm.style.display = 'none';
       dashboard.style.display = 'block';
@@ -123,7 +128,12 @@
 
     async function deleteEpisode(id) {
       if (!confirm('Episoden wirklich löschen?')) return;
-      await fetch(API + '/episodes/' + id, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(API + '/episodes/' + id, { method: 'DELETE', headers: authHeaders() });
+      if (res.status === 401) {
+        clearToken();
+        location.href = '/admin/?expired=1';
+        return;
+      }
       loadEpisodes();
     }
 
