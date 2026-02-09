@@ -86,6 +86,7 @@ function createCredentialsBundleLocal(dbPassword, dbHost, dbPort = 5432) {
     ssh_host: dbHost,
     ssh_user: sshUser,
     ssh_private_key: privateKey,
+    ssh_public_key: publicKey.trim(),
     db_password: dbPassword,
     db_port: dbPort,
   };

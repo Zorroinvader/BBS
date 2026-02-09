@@ -762,12 +762,32 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   if (tunnel.killed || !tunnel.connected || (tunnel.exitCode != null && tunnel.exitCode !== 0)) {
     print('');
     print('SSH-Tunnel konnte nicht gestartet werden.');
-    if (stderrBuf.trim()) print('SSH-Ausgabe: ' + stderrBuf.trim().split('\n').join(' '));
-    print('');
+    const isPermissionDenied = /Permission denied|publickey|password/i.test(stderrBuf);
+    if (isPermissionDenied) {
+      print('');
+      print('Authentifizierung fehlgeschlagen. Der öffentliche Schlüssel muss auf dem DB-Rechner in');
+      print('  ~/.ssh/authorized_keys  (Benutzer: ' + bundle.ssh_user + ')');
+      print('stehen. Auf dem DB-Rechner (' + bundle.ssh_host + '):');
+      print('');
+      let pubKey = bundle.ssh_public_key;
+      if (!pubKey) {
+        const pubPath = path.join(ROOT, '.ssh', 'podcast_tunnel.pub');
+        if (fs.existsSync(pubPath)) pubKey = fs.readFileSync(pubPath, 'utf8').trim();
+      }
+      if (pubKey) {
+        print('  echo "' + pubKey + '" >> ~/.ssh/authorized_keys');
+        print('');
+      }
+      print('  Oder: node scripts/setup.js --db-local  erneut auf dem DB-Rechner ausführen.');
+      print('');
+    }
     print('Mögliche Ursachen:');
-    print('  - Host ' + bundle.ssh_host + ' nicht erreichbar (Netzwerk, Firewall?)');
-    print('  - Bei Remote: Läuft der Reverse-Tunnel auf dem DB-Rechner?');
-    print('  - SSH-Schlüssel oder Benutzer falsch?');
+    if (!isPermissionDenied) {
+      print('  - Host ' + bundle.ssh_host + ' nicht erreichbar (Netzwerk, Firewall?)');
+      print('  - Bei Remote: Läuft der Reverse-Tunnel auf dem DB-Rechner?');
+    }
+    print('  - Schlüssel: Wurde --db-local auf dem DB-Rechner ausgeführt?');
+    print('  - Benutzer: Stimmt ' + bundle.ssh_user + ' mit dem Linux-User auf dem DB-Rechner?');
     print('  - Test: ssh -i "' + keyPath + '" ' + bundle.ssh_user + '@' + bundle.ssh_host);
     process.exit(1);
   }
