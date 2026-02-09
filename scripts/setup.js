@@ -233,26 +233,28 @@ function getLocalIP() {
   return '127.0.0.1';
 }
 
-function printTransferFiles(sshHost, isVps = false) {
+function printTransferFiles(sshHost, isVps = false, sshUser = null) {
   const credsAbs = path.resolve(CREDS_PATH);
   const rootAbs = path.resolve(ROOT);
   const sshDir = path.join(ROOT, '.ssh');
   const sshKeyPath = path.join(sshDir, 'podcast_tunnel');
+  const user = sshUser || os.userInfo().username;
+  const credsPathForScp = credsAbs.replace(/\\/g, '/');
 
   print('');
   print('=== DATEIEN FÜR ÜBERTRAGUNG ===');
   print('');
-  print('Projektverzeichnis:');
-  print('  ' + rootAbs);
-  print('');
-  print('Diese Datei auf den App-Rechner kopieren (USB, SCP, E-Mail, etc.):');
+  print('Diese Datei auf den App-Rechner kopieren:');
   print('  ' + credsAbs);
+  print('');
+  print('SCP-Befehl (vom App-Rechner aus, gleiches Netzwerk):');
+  print('  scp ' + user + '@' + sshHost + ':' + credsPathForScp + ' .');
+  print('');
+  print('Windows (PowerShell, mit OpenSSH):');
+  print('  scp ' + user + '@' + sshHost + ':' + credsPathForScp + ' .');
   print('');
   const hostLabel = isVps ? 'ssh_host (VPS)' : 'ssh_host';
   print('Enthält: SSH-Schlüssel, DB_PASSWORD, ' + hostLabel + ' (' + sshHost + '), ssh_user');
-  print('');
-  print('SSH-Schlüssel (falls manuell benötigt):');
-  print('  ' + (fs.existsSync(sshKeyPath) ? path.resolve(sshKeyPath) : '(wird in .ssh/ erzeugt)'));
   print('');
   print('=== ENDE ===');
   print('');
@@ -443,7 +445,7 @@ async function setupDbLocal(rl) {
     print('');
   }
 
-  printTransferFiles(dbHost, false);
+  printTransferFiles(dbHost, false, bundle.ssh_user);
 
   print('Nächste Schritte:');
   print('1. Kopiere podcast-ssh-credentials.json auf den App-Rechner');
@@ -524,7 +526,7 @@ async function setupOnlyDbSsh(rl) {
     print('  Hinweis: VPS ' + vpsHost + ' nicht erreichbar (Port 22). Netzwerk/Firewall prüfen.');
   }
 
-  printTransferFiles(vpsHost, true);
+  printTransferFiles(vpsHost, true, vpsUser);
   printReverseSshInstructions(vpsHost, vpsUser, getPublicKey());
 
   print('Starte Live DB-Log... (Strg+C zum Beenden)\n');
@@ -627,8 +629,9 @@ async function setupAppOnlySsh(rl) {
   print('\n=== Nur App (via SSH-Tunnel zur Remote-DB) ===\n');
   print('Verbindet über SSH-Tunnel – funktioniert auch aus anderen Netzwerken.\n');
 
-  let credsPath = await ask(rl, 'Pfad zu podcast-ssh-credentials.json (oder leer für manuelle Eingabe)', '');
-  credsPath = credsPath.trim();
+  const defaultCredsPath = path.join(ROOT, 'podcast-ssh-credentials.json');
+  let credsPath = await ask(rl, 'Pfad zu podcast-ssh-credentials.json (oder Enter für ./podcast-ssh-credentials.json)', defaultCredsPath);
+  credsPath = (credsPath || defaultCredsPath).trim();
 
   let bundle = null;
   if (credsPath && fs.existsSync(credsPath)) {
@@ -677,10 +680,20 @@ async function setupAppOnlySsh(rl) {
     }
   }
 
+  const privateKey = bundle.ssh_private_key;
+  if (!privateKey || !privateKey.includes('-----BEGIN') || !privateKey.includes('-----END')) {
+    print('');
+    print('Fehler: Ungültiger SSH-Privat Schlüssel in den Credentials.');
+    print('Die podcast-ssh-credentials.json muss ssh_private_key mit einem gültigen PEM-Schlüssel enthalten.');
+    print('Erstelle die Credentials neu auf dem DB-Rechner: node scripts/setup.js --db-local');
+    print('');
+    process.exit(1);
+  }
+
   const sshDir = path.join(ROOT, '.ssh');
   if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { mode: 0o700 });
   const keyPath = path.join(sshDir, 'podcast_tunnel');
-  fs.writeFileSync(keyPath, bundle.ssh_private_key, { mode: 0o600 });
+  fs.writeFileSync(keyPath, privateKey, { mode: 0o600 });
   if (os.platform() !== 'win32') {
     try { fs.chmodSync(keyPath, 0o600); } catch (_) {}
   }

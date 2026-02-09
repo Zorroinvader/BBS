@@ -20,7 +20,8 @@
    - Startet PostgreSQL
    - Erzeugt SSH-Schlüssel und `podcast-ssh-credentials.json`
    - SSH-Server (sshd) wird benötigt
-2. **Credentials übertragen**: Kopiere `podcast-ssh-credentials.json` auf den App-Rechner
+2. **Credentials übertragen**: Kopiere `podcast-ssh-credentials.json` auf den App-Rechner  
+   - Der Setup zeigt einen SCP-Befehl (vom App-Rechner aus ausführen)
 3. **App-Rechner**: `node scripts/setup.js --app-only-ssh` – gib den Pfad zur Credentials-Datei an
 
 ### Option B: Direkte Verbindung (einfacher, weniger sicher)
@@ -58,7 +59,8 @@ Oder mit autossh: `autossh -M 0 -o ServerAliveInterval=30 -R 5432:localhost:5432
 
 ### 4. Credentials übertragen
 
-Kopiere `podcast-ssh-credentials.json` auf den App-Rechner (USB, SCP, etc.).
+Kopiere `podcast-ssh-credentials.json` auf den App-Rechner.  
+Der Setup zeigt einen SCP-Befehl (vom App-Rechner aus ausführen), alternativ USB/E-Mail.
 
 ### 5. Auf dem App-Rechner
 

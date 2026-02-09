@@ -33,10 +33,12 @@ function generateKeyPair() {
   if (fs.existsSync(KEY_PATH)) {
     return { generated: false, keyPath: KEY_PATH };
   }
-  execSync(
-    `ssh-keygen -t ed25519 -f "${KEY_PATH}" -N "" -C "podcast-tunnel"`,
-    { stdio: 'pipe' }
-  );
+  execSync('ssh-keygen', [
+    '-t', 'ed25519',
+    '-f', KEY_PATH,
+    '-N', '',
+    '-C', 'podcast-tunnel',
+  ], { stdio: 'pipe' });
   return { generated: true, keyPath: KEY_PATH };
 }
 
@@ -64,12 +66,14 @@ function addToAuthorizedKeys(publicKey) {
 function createCredentialsBundle(dbPassword, vpsHost, vpsUser, dbPort = 5432) {
   generateKeyPair();
   const privateKey = fs.readFileSync(KEY_PATH, 'utf8');
+  const publicKey = fs.existsSync(PUB_PATH) ? fs.readFileSync(PUB_PATH, 'utf8').trim() : '';
   return {
     vps_host: vpsHost,
     vps_user: vpsUser,
     ssh_host: vpsHost,
     ssh_user: vpsUser,
     ssh_private_key: privateKey,
+    ssh_public_key: publicKey,
     db_password: dbPassword,
     db_port: dbPort,
   };
