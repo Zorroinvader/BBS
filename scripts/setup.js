@@ -208,6 +208,141 @@ function isDockerDaemonError(err) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PlantUML Documentation Tools
+// ═══════════════════════════════════════════════════════════════════════════════
+function isJavaInstalled() {
+  try {
+    execSync('java -version', { stdio: 'pipe' });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function isPlantUmlInstalled() {
+  try {
+    const npmList = execSync('npm list -g node-plantuml', { stdio: 'pipe', encoding: 'utf8' });
+    return npmList.includes('node-plantuml@');
+  } catch (_) {
+    return false;
+  }
+}
+
+async function ensureJavaInstalled() {
+  if (isJavaInstalled()) {
+    success('Java is already installed');
+    return true;
+  }
+
+  warn('Java not found - required for PlantUML diagram generation');
+
+  try {
+    if (os.platform() === 'win32') {
+      step('Installing Java via winget...');
+      execSync('winget install --id EclipseAdoptium.Temurin.21.JDK --accept-package-agreements --accept-source-agreements', { stdio: 'inherit' });
+    } else if (os.platform() === 'darwin') {
+      step('Installing Java via Homebrew...');
+      execSync('brew install openjdk@21', { stdio: 'inherit' });
+    } else {
+      step('Installing Java via apt...');
+      execSync('sudo apt update && sudo apt install -y default-jre', { stdio: 'inherit' });
+    }
+
+    if (isJavaInstalled()) {
+      success('Java installed successfully');
+      return true;
+    }
+  } catch (e) {
+    warn('Automatic Java installation failed');
+  }
+
+  return false;
+}
+
+async function ensurePlantUmlInstalled() {
+  if (isPlantUmlInstalled()) {
+    success('PlantUML is already installed');
+    return true;
+  }
+
+  step('Installing PlantUML (node-plantuml)...');
+  try {
+    execSync('npm install -g node-plantuml', { stdio: 'inherit' });
+    success('PlantUML installed successfully');
+    return true;
+  } catch (e) {
+    warn('PlantUML installation failed - you can install it manually: npm install -g node-plantuml');
+    return false;
+  }
+}
+
+async function generateDiagrams() {
+  const docsDir = path.join(ROOT, 'docs');
+
+  if (!fs.existsSync(docsDir)) {
+    return; // No docs directory, skip silently
+  }
+
+  const pumlFiles = fs.readdirSync(docsDir).filter(f => f.endsWith('.puml'));
+  if (pumlFiles.length === 0) {
+    return; // No PlantUML files, skip silently
+  }
+
+  section('Documentation Diagrams', '📐');
+
+  step('Checking PlantUML requirements...');
+  const javaOk = await ensureJavaInstalled();
+  if (!javaOk) {
+    warn('Skipping diagram generation - Java not available');
+    warn('Install Java manually and run: plantuml docs/*.puml');
+    return;
+  }
+
+  const plantumlOk = await ensurePlantUmlInstalled();
+  if (!plantumlOk) {
+    warn('Skipping diagram generation - PlantUML not available');
+    return;
+  }
+
+  step(`Generating ${pumlFiles.length} UML diagrams...`);
+  let generated = 0;
+  let failed = 0;
+
+  for (const file of pumlFiles) {
+    const pumlPath = path.join(docsDir, file);
+    const baseName = file.replace('.puml', '');
+
+    try {
+      // Generate PNG
+      execSync(`npx node-plantuml -o "${docsDir}" "${pumlPath}"`, {
+        stdio: 'pipe',
+        cwd: ROOT
+      });
+
+      // Also generate SVG for better quality in docs
+      execSync(`npx node-plantuml -tsvg -o "${docsDir}" "${pumlPath}"`, {
+        stdio: 'pipe',
+        cwd: ROOT
+      });
+
+      generated++;
+      console.log(col('    ✓ ', 'green') + col(baseName, 'dim') + col(' → PNG + SVG', 'dim'));
+    } catch (e) {
+      failed++;
+      console.log(col('    ✗ ', 'red') + col(baseName, 'dim'));
+    }
+  }
+
+  if (generated > 0) {
+    success(`Generated ${generated} diagrams (PNG + SVG format)`);
+    console.log(col(`    Location: ${docsDir}`, 'dim'));
+  }
+  if (failed > 0) {
+    warn(`Failed to generate ${failed} diagrams`);
+  }
+}
+
 function tryStartDockerDesktop() {
   if (os.platform() !== 'win32') return false;
   const paths = [
@@ -541,6 +676,9 @@ DB_PATH=./data/podcasts.db
   console.log('');
   success('Development setup complete!');
   printAppLink('http://localhost:3000', true);
+
+  // Generate UML documentation diagrams
+  await generateDiagrams();
 }
 
 async function setupProd(rl) {
@@ -580,6 +718,9 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   success('Production setup complete!');
   console.log(col('  Start:', 'dim') + ' docker compose -f docker-compose.prod.yml up -d');
   printAppLink(publicUrl, false);
+
+  // Generate UML documentation diagrams
+  await generateDiagrams();
 }
 
 async function setupOnlyDb(rl) {
@@ -620,6 +761,9 @@ async function setupOnlyDb(rl) {
   console.log(col('  Beispiel: ', 'dim') + col('node scripts/setup.js --app-only', 'cyan'));
   console.log(col('  Live DB-Log: ', 'dim') + col('node scripts/db-log-viewer.js', 'cyan'));
   console.log('');
+
+  // Generate UML documentation diagrams
+  await generateDiagrams();
 }
 
 async function setupDbLocal(rl) {
@@ -908,6 +1052,9 @@ ${corsOrigin ? `CORS_ORIGIN=${corsOrigin}` : ''}
   success('Your app is running at the address you entered:');
   printAppLink(publicUrl, true);
   console.log(col('  Stop: ', 'dim') + 'docker compose -f docker-compose.app-only.yml down');
+
+  // Generate UML documentation diagrams
+  await generateDiagrams();
 }
 
 async function setupAppOnlySsh(rl) {

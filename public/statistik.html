@@ -127,8 +127,8 @@
           <div class="label">Episoden</div>
         </div>
         <div class="stat-card">
-          <div class="value" id="stat-listeners">0</div>
-          <div class="label">Aktive Hörer (Platzhalter)</div>
+          <div class="value" id="stat-listens">0</div>
+          <div class="label">Abspielvorgänge</div>
         </div>
       </div>
     </section>
@@ -155,7 +155,6 @@
 
   <script>
     fetch('/api/stats').then(r => r.json()).then(s => {
-      document.getElementById('stat-listeners').textContent = s.activeListeners ?? 0;
       const hoursEl = document.getElementById('stat-hours');
       const timeLabel = s.streamableTime || null;
       if (timeLabel) {
@@ -164,6 +163,12 @@
         hoursEl.textContent = (s.streamableHours ?? 0) + 'h';
       }
       document.getElementById('stat-episodes').textContent = s.episodeCount ?? 0;
+    }).catch(() => {});
+
+    // Load total listen count from stats endpoint
+    fetch('/api/stats').then(r => r.json()).then(s => {
+      const listensEl = document.getElementById('stat-listens');
+      if (listensEl) listensEl.textContent = s.totalListens ?? 0;
     }).catch(() => {});
 
     async function loadCharts() {

@@ -1,0 +1,94 @@
+@startuml
+!theme plain
+title Abbildung A.3: Komponentendiagramm – Systemarchitektur
+
+package "Frontend Layer" {
+  [Web Browser] as Browser
+  [HTML/CSS/JS] as Frontend
+  [Admin Panel] as AdminUI
+  [Player Interface] as PlayerUI
+}
+
+package "API Layer" {
+  [Express Router] as Router
+  [Authentication API] as AuthAPI
+  [Episodes API] as EpisodesAPI
+  [Distribution API] as DistributionAPI
+  [Analytics API] as AnalyticsAPI
+  [Stats API] as StatsAPI
+  [Audit API] as AuditAPI
+  [Import API] as ImportAPI
+  [RSS Generator] as RSSGen
+}
+
+package "Service Layer" {
+  [Auth Service] as AuthService
+  [Episode Service] as EpisodeService
+  [RedCircle Service] as RedCircleService
+  [Analytics Service] as AnalyticsService
+  [Audit Service] as AuditService
+  [RSS Service] as RSSService
+}
+
+package "Data Layer" {
+  database "SQLite/PostgreSQL" as DB {
+    [users]
+    [episodes]
+    [listen_events]
+    [audit_log]
+  }
+  folder "File Storage" {
+    [Audio Files]
+    [Artwork Files]
+  }
+}
+
+package "External Services" {
+  cloud "RedCircle API" as RedCircle
+  cloud "Spotify" as Spotify
+  cloud "Apple Podcasts" as Apple
+  cloud "YouTube" as YouTube
+}
+
+' Frontend connections
+Browser --> Frontend
+Frontend --> AdminUI
+Frontend --> PlayerUI
+
+' API connections
+Frontend --> Router
+Router --> AuthAPI
+Router --> EpisodesAPI
+Router --> DistributionAPI
+Router --> AnalyticsAPI
+Router --> StatsAPI
+Router --> AuditAPI
+Router --> ImportAPI
+Router --> RSSGen
+
+' API to Service connections
+AuthAPI --> AuthService
+EpisodesAPI --> EpisodeService
+DistributionAPI --> RedCircleService
+AnalyticsAPI --> AnalyticsService
+StatsAPI --> EpisodeService
+AuditAPI --> AuditService
+ImportAPI --> EpisodeService
+RSSGen --> RSSService
+
+' Service to Data connections
+AuthService --> DB
+EpisodeService --> DB
+AnalyticsService --> DB
+AuditService --> DB
+RSSService --> DB
+EpisodeService --> [Audio Files]
+EpisodeService --> [Artwork Files]
+
+' External service connections
+RedCircleService --> RedCircle
+RedCircle --> Spotify
+RedCircle --> Apple
+RedCircle --> YouTube
+
+@enduml

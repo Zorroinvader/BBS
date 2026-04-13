@@ -27,3 +27,27 @@ CREATE TABLE IF NOT EXISTS episodes (
 
 CREATE INDEX IF NOT EXISTS idx_episodes_publish ON episodes(publish_date DESC);
 CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series);
+
+CREATE TABLE IF NOT EXISTS listen_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  episode_id INTEGER NOT NULL,
+  listened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  source TEXT DEFAULT 'web',
+  FOREIGN KEY (episode_id) REFERENCES episodes(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_listen_events_episode ON listen_events(episode_id);
+CREATE INDEX IF NOT EXISTS idx_listen_events_date ON listen_events(listened_at DESC);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  action TEXT NOT NULL,
+  resource TEXT,
+  resource_id INTEGER,
+  details TEXT,
+  ip_address TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_date ON audit_log(created_at DESC);

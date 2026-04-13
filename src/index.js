@@ -9,9 +9,13 @@ const dbLogRouter = require('./api/dbLog');
 const statsRouter = require('./api/stats');
 const usersRouter = require('./api/users');
 const importRouter = require('./api/import');
+const distributionRouter = require('./api/distribution');
+const analyticsRouter = require('./api/analytics');
+const auditRouter = require('./api/audit');
 const { generateRss } = require('./services/rss');
 const { getDb } = require('./db');
 const authService = require('./services/authService');
+const auditService = require('./services/auditService');
 
 const app = express();
 
@@ -32,6 +36,9 @@ app.use('/api/episodes', episodesRouter);
 app.use('/api/db-log', dbLogRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/import', importRouter);
+app.use('/api/distribution', distributionRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/audit', auditRouter);
 
 app.get('/feed.xml', async (req, res) => {
   try {

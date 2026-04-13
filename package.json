@@ -13,7 +13,8 @@
     "setup:app-only": "node scripts/setup.js --app-only",
     "setup:app-only-ssh": "node scripts/setup.js --app-only-ssh",
     "setup:db-local": "node scripts/setup.js --db-local",
-    "setup:db-ssh": "node scripts/setup.js --db-only-ssh"
+    "setup:db-ssh": "node scripts/setup.js --db-only-ssh",
+    "docs:diagrams": "node scripts/generate-diagrams.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

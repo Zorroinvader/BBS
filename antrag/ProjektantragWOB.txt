@@ -1,0 +1,156 @@
+
+Projektname: 
+Einführung einer internen Podcast-Plattform für die Organisation von Podcasts mit RedCircle
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Projektleiter: Peer Giese
+Schule: BBS2 Wolfsburg
+Datum: 22.09.2025
+Projektzeitraum: 06.10.2025 – 31.01.2026
+
+
+
+1. Projektbezeichnung
+Entwicklung einer internen Podcast-Plattform mit RedCircle
+1.1 Kurzform der Aufgabenerstellung
+Für die BBS2 Wolfsburg wird eine interne Podcast-Plattform auf Basis von RedCircle entwickelt. Diese Plattform dient nicht zur Erstellung oder Bearbeitung von Podcasts, sondern ausschließlich zur Verwaltung, Organisation, Veröffentlichung und Analyse interner Podcasts. Autorisierte Nutzer können Inhalte hochladen und über eine benutzerfreundliche Oberfläche verwalten. Die Podcasts werden automatisiert auf externe Plattformen wie Spotify, YouTube oder das Schulradio verteilt.
+1.2 Ist-Analyse
+Aktuell existiert an der BBS2 Wolfsburg keine zentrale Plattform für die Planung, Verwaltung und Verteilung schulinterner Podcasts. Zwar entstehen im Rahmen von Projektarbeiten, Wahlpflichtkursen oder im Deutsch-/Politikunterricht immer wieder Podcast-Inhalte, jedoch mangelt es an einer strukturierten technischen und organisatorischen Grundlage zur nachhaltigen Nutzung dieser Formate.
+Bisherige Situation:
+* Verteilte Arbeitsweise: Podcast-Projekte werden aktuell von verschiedenen Lehrkräften und Lerngruppen unabhängig voneinander durchgeführt. Es fehlt eine institutionalisierte Lösung zur Sammlung, Archivierung und Distribution der Inhalte.
+* Fehlende Distribution: Veröffentlichungen erfolgen bisher manuell über private YouTube-Konten oder gar nicht. Spotify oder andere Plattformen werden nicht genutzt, was die Reichweite stark einschränkt.
+* Keine Benutzerverwaltung: Es gibt keine einheitliche Steuerung von Berechtigungen. Jeder arbeitet auf eigene Faust – dies führt zu Sicherheitslücken (z.?B. bei datenschutzrelevanten Inhalten) und erschwert die Nachverfolgung.
+* Fehlende Analyse und Qualitätssicherung: Es gibt keine Möglichkeit, Zuhörerdaten, Verweildauer oder Feedback systematisch zu erfassen. Inhalte werden nicht optimiert, da keine Datenbasis existiert.
+Organisatorische Probleme:
+* Keine zentrale Verantwortlichkeit: Es gibt keine definierte Rolle oder Abteilung innerhalb der Schule, die sich um die Pflege und Koordination von Podcast-Inhalten kümmert.
+* Intransparente Abläufe: Beteiligte wissen nicht, welche Gruppen bereits Inhalte erstellt haben, wodurch Potenziale zur Zusammenarbeit ungenutzt bleiben.
+* Kein institutionelles Wissen: Jedes neue Podcast-Projekt fängt organisatorisch wieder bei null an. Es existieren keine dokumentierten Abläufe oder Best Practices.
+Pädagogischer Bedarf:
+* Verankerung im Schulalltag: Um Podcasts langfristig als Teil der schulischen Kommunikation (z.?B. Schulnachrichten, Schülerprojekte, Interviews) zu etablieren, ist eine dauerhafte technische Lösung nötig.
+Wirtschaftliche Einschränkungen:
+* Keine finanziellen Mittel: Für das Projekt steht kein externes Budget zur Verfügung. Es muss daher mit kostenlosen Tools (z.?B. RedCircle) gearbeitet werden, die dennoch professionelle Funktionen bieten.
+
+
+
+2. Zielsetzung entwickeln / Soll-Konzept
+2.1 Was soll am Ende des Projektes erreicht sein?
+Eine interne Podcast-Plattform auf Basis von RedCircle ist implementiert. Die Plattform bietet:
+* Eine zentrale Oberfläche zur Verwaltung interner Podcasts
+* Automatische Verteilung auf Spotify, YouTube und das Schulradio
+* Möglichkeit zur Analyse von Zuhörerdaten
+* Benutzerverwaltung mit Rollen und Rechten
+* Dokumentation zur Nutzung durch Lehrkräfte und Schüler
+2.2 Anforderungen, die erfüllt werden müssen
+* Zentrale Verwaltung hochgeladener Podcasts durch autorisierte Nutzer
+* Benutzerfreundliche, einfache Weboberfläche
+* DSGVO-konforme Zugriffskontrolle
+* Automatisierte Distribution auf externe Plattformen (Spotify, YouTube, Schulradio)
+* Möglichkeit zur Zuhöreranalyse und Statistiken (z.?B. Anzahl Downloads)
+* Wartbarkeit durch technische Dokumentation
+* Schulungsunterlagen für Nutzerbereitstellung
+
+
+
+
+
+
+
+3. Projektstrukturplan entwickeln
+3.1 Was ist zur Erfüllung der Zielsetzung erforderlich?
+Das Projekt wird agil entwickelt, um schnell auf Feedback reagieren zu können. Iterative Entwicklung und regelmäßige Rücksprachen ermöglichen es, Änderungen zügig umzusetzen. Der gesamte Entwicklungsprozess wird durch automatisierte Tests und einen Buildserver unterstützt, um die Qualität sicherzustellen.
+3.2 Aufgaben auflisten:
+* Bedarfserhebung & Ist-Analyse
+* Auswahl & Einrichtung von RedCircle
+* Definition der Anforderungen & Rollen
+* Konzeption & Dokumentation der Plattformstruktur
+* API-Integration & Verteilmechanismus
+* Implementierung der Benutzerrechte
+* Erstellung von Schulungsmaterialien
+* Durchführung von Tests & Feedbackrunden
+* Durchführung der Schulung
+* Regelmäßige Veröffentlichung & Monitoring
+
+
+
+4. Projektphasen mit Zeitplanung in Stunden
+PhaseDauer in StundenAnalyse10 hInterviews mit Stakeholdern, Sammlung von Anforderungen, Ist-Zustand dokumentierenEntwurf15 hAuswahl von RedCircle, Definition der Nutzerrollen, Aufbau des Plattform-KonzeptsImplementierung40 hKonto bei RedCircle anlegen, API-Anbindung, Plattform einrichten, technische KonfigurationTestphase und Feedbackrunde10 hErste Tests mit Beispielinhalten, Feedback von Nutzern einholen und dokumentierenAbnahme und Einführung5 hErstellung von Schulungsmaterialien, Durchführung von Schulungen für die ZielgruppeDokumentation10 hTechnische und nutzerorientierte Dokumentation, Anleitungen zur NutzungSumme80 h
+
+
+5. Projektmeilensteine
+MeilensteinBeschreibung1. Bedarfserhebung und AnforderungsanalyseErhebung der Anforderungen von internen Nutzern und Stakeholdern2. Auswahl der RedCircle-Plattform und KontoerstellungAnmeldung und Einrichtung eines RedCircle-Kontos3. Entwicklung der API-SchnittstelleEntwicklung und Integration der API zur Podcast-Verwaltung4. Einrichtung der Benutzerrechte und ZugangskontrollenImplementierung der Zugangskontrollen für die Nutzer5. Testphase der Schnittstelle und BenutzerrechteInterne Tests der API-Integration und der Zugangskontrollen6. Erstellung von Podcast-Inhalten und erste UploadsErstellen und Hochladen der ersten Podcast-Episoden7. Automatisierung der Verteilung auf externe PlattformenEinrichtung der automatischen Verteilung auf YouTube und dem Schulradio8. Schulung der internen NutzerSchulung der internen Nutzer zur Nutzung der Plattform9. Feedbackrunde und OptimierungSammlung von Feedback und Optimierung der Schnittstelle und Prozesse10. Regelmäßige Veröffentlichungen und MonitoringEtablierung eines regelmäßigen Veröffentlichungsplans und Monitoring der Nutzung
+
+
+6. Risikoanalyse
+RisikoEintrittswahrscheinlichkeitAuswirkungenMaßnahmen zur RisikominimierungFehler bei der API-IntegrationMittelVerzögerung beim Hochladen der EpisodenEnger Austausch mit dem technischen Team und regelmäßige TestsZugriffsrechte und BenutzerverwaltungNiedrigUnbefugte Zugriffe auf das Upload-SystemDetaillierte Benutzerberechtigungen und Schulungen für interne NutzerProbleme bei der Distribution auf externe PlattformenNiedrigVerzögerung bei der VeröffentlichungRegelmäßige Tests und Monitoring der VeröffentlichungUnzureichende Nutzung und Interesse an den PodcastsMittelGeringe Zuhörerzahlen und EngagementInterne Promotion und Anpassung der Inhalte basierend auf Feedback
+
+
+7. Ressourcenplanung
+Personelle Ressourcen:
+* Projektleiter: Koordination des Projekts und Kommunikation zwischen den Abteilungen
+* Technisches Team: Entwicklung und Integration der RedCircle-API
+* Content-Team: Erstellung von Podcast-Inhalten
+* Support-Team: Bereitstellung von technischem Support für interne Nutzer
+* Marketing und Kommunikation: Unterstützung bei der Promotion der Podcasts
+Technische Ressourcen:
+* RedCircle-Konto: Zum Hosten und Verwalten der Podcasts
+* API-Integration: Zur Verwaltung und Verteilung der Podcasts
+* Audio-Produktionseinrichtungen: Mikrofone, Aufnahmegeräte und Software für die Podcast-Produktion
+* Internes Intranet/Portal: Bereitstellung eines internen Bereichs für die Verwaltung und das Hochladen von Podcasts
+
+
+8. Erfolgskriterien
+Das Projekt gilt als erfolgreich, wenn:
+* Nur autorisierte interne Nutzer Zugriff auf die Podcast-Verwaltung haben
+* Podcasts regelmäßig veröffentlicht und auf externen Plattformen wie YouTube oder dem Schulradio verbreitet werden
+* Eine stabile Zuhörerschaft innerhalb der Organisation aufgebaut wird, unterstützt durch Analytics und Feedback
+* Nutzerfeedback zur kontinuierlichen Verbesserung der Schnittstelle und der Inhalte genutzt wird
+
+
+9. Fazit
+Die Einführung einer internen Podcast-Plattform auf Basis von Anchor bietet eine benutzerfreundliche Lösung zur Erstellung, Verwaltung und Verbreitung von Podcasts. Die Plattform ermöglicht eine effiziente Verwaltung und einen vereinfachten Prozess zur Verteilung auf externe Plattformen, während durch Zugangskontrollen die Nutzung sicher und zielgerichtet erfolgt. Die kontinuierliche Anpassung an Nutzerfeedback sorgt für eine langfristige und erfolgreiche Integration der Plattform.
+
+10. Präsentationsmittel
+Zur Präsentation des Projekts werden folgende Mittel eingesetzt:
+* PowerPoint-Präsentation zur Vorstellung der Ziele, Phasen und Ergebnisse
+* Pointer 
+* Beamer
+* Laptop
+* USB-Stick
+
+
+
+
+
+
+
+
+
+
+
+Unterschrift Projektleiter:
+Peer Giese
+Unterschrift Schulleiter:
+Joanna Müller-Lenz
+
+
+
+
+
+

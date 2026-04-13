@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distribution – Admin</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .dist-intro {
+      max-width: 60ch;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+    .dist-status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .dist-platform-card {
+      background: var(--color-white);
+      padding: 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+      border: 1px solid var(--color-border);
+    }
+    .dist-platform-card .platform-name {
+      font-weight: 600;
+      font-size: var(--text-base);
+      margin-bottom: 0.35rem;
+      color: var(--color-text);
+    }
+    .dist-platform-card .platform-status {
+      font-size: var(--text-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-dot.connected { background: #10b981; }
+    .status-dot.disconnected { background: #ef4444; }
+    .status-dot.unknown { background: #d1d5db; }
+    .dist-section-title {
+      font-size: var(--text-h3);
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      color: var(--color-text);
+    }
+    .episode-dist-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--color-border);
+      gap: 1rem;
+    }
+    .episode-dist-row:last-child { border-bottom: none; }
+    .episode-dist-title {
+      font-weight: 500;
+      color: var(--color-text);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .episode-dist-links {
+      font-size: var(--text-xs);
+      color: var(--color-text-secondary);
+      flex-shrink: 0;
+    }
+    .episode-dist-links a {
+      color: var(--color-primary);
+      font-weight: 500;
+    }
+    .btn-publish {
+      padding: 0.4rem 0.85rem;
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .btn-publish:hover { background: var(--color-primary-hover); }
+    .btn-publish:disabled { opacity: 0.5; cursor: not-allowed; }
+    .config-hint {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fbbf24;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .empty-state {
+      padding: 2rem;
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <header class="site-header">
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Inhalte</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html">Aus RSS importieren</a></li>
+          <li><a href="distribution.html" class="active">Distribution (RedCircle)</a></li>
+          <li class="nav-section">Auswertung</li>
+          <li><a href="stats.html">Statistik (Admin)</a></li>
+          <li><a href="analytics.html">Zuhöreranalyse</a></li>
+          <li class="nav-section">System</li>
+          <li><a href="audit.html">DSGVO / Audit-Log</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
+      <h1>Distribution (RedCircle)</h1>
+      <p class="dist-intro">
+        Verwalte die automatische Verteilung deiner Podcasts an Spotify, YouTube und das Schulradio über RedCircle.
+      </p>
+
+      <div id="config-warning" class="config-hint" style="display:none;">
+        RedCircle ist nicht konfiguriert. Setze <code>REDCIRCLE_API_KEY</code> und <code>REDCIRCLE_SHOW_ID</code> in der <code>.env</code>-Datei, um die Distribution zu aktivieren.
+      </div>
+
+      <h2 class="dist-section-title">Plattform-Status</h2>
+      <div class="dist-status-grid" id="platform-status">
+        <div class="dist-platform-card">
+          <div class="platform-name">Spotify</div>
+          <div class="platform-status" id="status-spotify"><span class="status-dot unknown"></span> Lade...</div>
+        </div>
+        <div class="dist-platform-card">
+          <div class="platform-name">YouTube</div>
+          <div class="platform-status" id="status-youtube"><span class="status-dot unknown"></span> Lade...</div>
+        </div>
+        <div class="dist-platform-card">
+          <div class="platform-name">Schulradio (RSS)</div>
+          <div class="platform-status" id="status-schulradio"><span class="status-dot unknown"></span> Lade...</div>
+        </div>
+      </div>
+
+      <h2 class="dist-section-title">Episoden verteilen</h2>
+      <div id="episode-list">
+        <p class="empty-state">Lade Episoden...</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+    function authHeaders() { return { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }; }
+    if (!getToken()) { window.location = '/admin/'; }
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault(); clearToken(); location.href = '/admin/';
+    };
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function renderStatus(elId, platform) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      if (platform && platform.connected) {
+        el.innerHTML = `<span class="status-dot connected"></span> Verbunden`;
+      } else {
+        el.innerHTML = `<span class="status-dot disconnected"></span> Nicht verbunden`;
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch(API + '/distribution/status', { headers: authHeaders() });
+        if (res.status === 401) { clearToken(); location.href = '/admin/?expired=1'; return; }
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.redcircle?.configured) {
+          document.getElementById('config-warning').style.display = 'block';
+        }
+        const p = data.distribution?.platforms || {};
+        renderStatus('status-spotify', p.spotify);
+        renderStatus('status-youtube', p.youtube);
+        renderStatus('status-schulradio', p.schulradio);
+      } catch (_) {}
+    }
+
+    async function loadEpisodes() {
+      try {
+        const res = await fetch(API + '/episodes?limit=50', { headers: authHeaders() });
+        const data = await res.json();
+        const list = document.getElementById('episode-list');
+        if (!data.episodes?.length) {
+          list.innerHTML = '<p class="empty-state">Noch keine Episoden vorhanden.</p>';
+          return;
+        }
+        list.innerHTML = data.episodes.map(ep => {
+          const links = [];
+          if (ep.spotifyUrl) links.push(`<a href="${escapeHtml(ep.spotifyUrl)}" target="_blank">Spotify</a>`);
+          if (ep.youtubeUrl) links.push(`<a href="${escapeHtml(ep.youtubeUrl)}" target="_blank">YouTube</a>`);
+          const hasLinks = links.length > 0;
+          return `
+            <div class="episode-dist-row" data-id="${ep.id}">
+              <span class="episode-dist-title">${escapeHtml(ep.title)}</span>
+              <span class="episode-dist-links">${hasLinks ? links.join(' · ') : '<span style="color:var(--color-text-secondary)">Nicht verteilt</span>'}</span>
+              <button class="btn-publish" onclick="publishEpisode(${ep.id}, this)">An Plattformen senden</button>
+            </div>
+          `;
+        }).join('');
+      } catch (_) {}
+    }
+
+    async function publishEpisode(id, btn) {
+      btn.disabled = true;
+      btn.textContent = 'Sende...';
+      try {
+        const res = await fetch(API + '/distribution/publish/' + id, {
+          method: 'POST',
+          headers: authHeaders(),
+        });
+        if (res.status === 401) { clearToken(); location.href = '/admin/?expired=1'; return; }
+        const data = await res.json();
+        if (data.success) {
+          btn.textContent = 'Gesendet';
+          loadEpisodes();
+        } else {
+          btn.textContent = 'Fehler';
+          btn.disabled = false;
+          alert(data.error || 'Veröffentlichung fehlgeschlagen.');
+        }
+      } catch (err) {
+        btn.textContent = 'Fehler';
+        btn.disabled = false;
+      }
+    }
+
+    loadStatus();
+    loadEpisodes();
+  </script>
+</body>
+</html>

@@ -222,8 +222,17 @@ async function getStats() {
   const averageDurationMinutes =
     episodeCount > 0 ? Math.round((totalDurationSeconds / episodeCount) / 60) : 0;
 
+  // Total listen events count
+  let totalListens = 0;
+  try {
+    const listenRow = await db.queryOne('SELECT COUNT(*) as total FROM listen_events');
+    totalListens = Number(listenRow?.total ?? 0);
+  } catch (_) {
+    // listen_events table may not exist yet
+  }
+
   return {
-    activeListeners: 0,
+    totalListens,
     streamableHours,
     streamableTime,
     episodeCount,

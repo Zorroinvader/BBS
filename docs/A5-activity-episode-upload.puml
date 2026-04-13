@@ -1,0 +1,76 @@
+@startuml
+!theme plain
+title Abbildung A.5: Aktivitätsdiagramm – Episode-Upload und Distribution
+
+start
+
+:Benutzer wählt Audio-Datei aus;
+:Benutzer gibt Metadaten ein
+(Titel, Beschreibung, Serie, Kategorie);
+
+if (Artwork vorhanden?) then (ja)
+  :Artwork-Datei auswählen;
+else (nein)
+endif
+
+:Formular absenden;
+
+partition "Backend-Verarbeitung" {
+  :Audio-Datei hochladen;
+  :Datei im /uploads Verzeichnis speichern;
+
+  if (Artwork hochgeladen?) then (ja)
+    :Artwork speichern;
+  else (nein)
+  endif
+
+  :Audio-Dauer berechnen;
+
+  :Episode in Datenbank speichern;
+  note right
+    INSERT INTO episodes
+    (title, description, audio_path,
+     artwork_path, duration_seconds,
+     series, category, ...)
+  end note
+
+  :DB-Log erstellen
+  (Aktion: "upload");
+}
+
+partition "Distribution-Workflow" {
+  if (RedCircle konfiguriert?) then (ja)
+    :Episode an RedCircle API senden;
+
+    fork
+      :RedCircle veröffentlicht Episode;
+    fork again
+      :Distribution zu Spotify;
+    fork again
+      :Distribution zu Apple Podcasts;
+    fork again
+      :Distribution zu YouTube;
+    end fork
+
+    :Platform-URLs von RedCircle abrufen;
+    :spotify_url, apple_url, youtube_url
+    in Episode-Record aktualisieren;
+
+  else (nein)
+    :Nur lokale Veröffentlichung;
+  endif
+}
+
+partition "RSS-Feed-Update" {
+  :RSS-Feed neu generieren;
+  :Feed unter /feed.xml verfügbar machen;
+}
+
+:Audit-Log-Eintrag erstellen
+(Aktion: "episode_created");
+
+:Erfolgsbenachrichtigung an Benutzer;
+
+stop
+
+@enduml

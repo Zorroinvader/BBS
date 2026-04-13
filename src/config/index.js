@@ -6,6 +6,9 @@ const config = {
   dbPath: process.env.DB_PATH || './data/podcasts.db',
   databaseUrl: process.env.DATABASE_URL,
   corsOrigin: process.env.CORS_ORIGIN,
+  // RedCircle integration
+  redcircleApiKey: process.env.REDCIRCLE_API_KEY || '',
+  redcircleShowId: process.env.REDCIRCLE_SHOW_ID || '',
 };
 
 config.apiUrl = `${config.publicUrl}/api`;
