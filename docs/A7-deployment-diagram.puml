@@ -1,0 +1,96 @@
+@startuml
+!theme plain
+title Abbildung A.7: Deployment-Diagramm – Docker-Infrastruktur
+
+node "Docker Host" {
+
+  node "podcast-platform Container" <<Docker Container>> {
+
+    component "Node.js Runtime" {
+      artifact "Express Server\n(Port 3000)" as ExpressApp
+      artifact "API Routes" as APIs
+      artifact "Services Layer" as Services
+    }
+
+    database "SQLite Database" as SQLite {
+      folder "/app/data" {
+        file "podcasts.db"
+      }
+    }
+
+    folder "Static Files" {
+      folder "/app/uploads" {
+        file "Audio Files (*.mp3, *.m4a)" as AudioFiles
+        file "Artwork Files (*.jpg, *.png)" as ArtworkFiles
+      }
+
+      folder "/app/public" {
+        file "HTML/CSS/JS" as FrontendFiles
+      }
+    }
+  }
+
+  node "Volume Mounts" <<Docker Volumes>> {
+    folder "./uploads" as UploadVolume
+    folder "./data" as DataVolume
+    folder "./public" as PublicVolume
+  }
+
+  ' Volume mappings
+  UploadVolume -up-> AudioFiles : mounted to
+  UploadVolume -up-> ArtworkFiles : mounted to
+  DataVolume -up-> SQLite : mounted to
+  PublicVolume -up-> FrontendFiles : mounted to
+
+}
+
+node "Client Devices" {
+  component "Web Browser" as Browser
+  component "RSS Reader" as RSSReader
+  component "Podcast App" as PodcastApp
+}
+
+cloud "External Services" {
+  component "RedCircle API" as RedCircle
+  component "Spotify" as Spotify
+  component "Apple Podcasts" as Apple
+  component "YouTube" as YouTube
+}
+
+' Network connections
+Browser --> ExpressApp : HTTP :3000
+RSSReader --> ExpressApp : GET /feed.xml
+PodcastApp --> ExpressApp : GET /feed.xml
+
+ExpressApp --> APIs
+APIs --> Services
+Services --> SQLite
+Services --> AudioFiles
+Services --> ArtworkFiles
+ExpressApp --> FrontendFiles
+
+Services --> RedCircle : HTTPS API
+RedCircle --> Spotify : Distribution
+RedCircle --> Apple : Distribution
+RedCircle --> YouTube : Distribution
+
+note right of ExpressApp
+  Environment:
+  - NODE_ENV=production
+  - PORT=3000
+  - HOST=0.0.0.0
+  - JWT_SECRET
+  - DB_PATH=/app/data/podcasts.db
+  - REDCIRCLE_API_KEY
+  - REDCIRCLE_SHOW_ID
+end note
+
+note bottom of "Docker Host"
+  Health Check:
+  wget http://localhost:3000/api/health
+  Interval: 30s
+  Timeout: 10s
+  Retries: 3
+end note
+
+@enduml

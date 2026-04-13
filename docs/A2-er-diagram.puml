@@ -1,0 +1,77 @@
+@startuml
+!theme plain
+title Abbildung A.2: ER-Diagramm – Datenbankschema
+
+' Entity Definitions
+entity "users" as users {
+  * id : SERIAL <<PK>>
+  --
+  * email : TEXT <<UNIQUE>>
+  * password_hash : TEXT
+  * role : TEXT
+  * created_at : TIMESTAMP
+}
+
+entity "episodes" as episodes {
+  * id : SERIAL <<PK>>
+  --
+  * title : TEXT
+  description : TEXT
+  * audio_path : TEXT
+  artwork_path : TEXT
+  duration_seconds : INTEGER
+  publish_date : TIMESTAMP
+  created_by : INTEGER <<FK>>
+  created_at : TIMESTAMP
+  series : TEXT
+  class_info : TEXT
+  category : TEXT
+  spotify_url : TEXT
+  apple_url : TEXT
+  youtube_url : TEXT
+}
+
+entity "listen_events" as listen_events {
+  * id : SERIAL <<PK>>
+  --
+  * episode_id : INTEGER <<FK>>
+  * listened_at : TIMESTAMP
+  source : TEXT
+}
+
+entity "audit_log" as audit_log {
+  * id : SERIAL <<PK>>
+  --
+  user_id : INTEGER
+  * action : TEXT
+  resource : TEXT
+  resource_id : INTEGER
+  details : TEXT
+  ip_address : TEXT
+  * created_at : TIMESTAMP
+}
+
+' Relationships
+users ||--o{ episodes : "erstellt"
+episodes ||--o{ listen_events : "aufgezeichnet"
+
+' Notes
+note right of episodes
+  Indizes:
+  - idx_episodes_publish
+  - idx_episodes_series
+  - idx_episodes_category
+end note
+
+note right of listen_events
+  Indizes:
+  - idx_listen_events_episode
+  - idx_listen_events_date
+end note
+
+note right of audit_log
+  Indizes:
+  - idx_audit_log_date
+end note
+
+@enduml

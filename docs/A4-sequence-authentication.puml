@@ -1,0 +1,63 @@
+@startuml
+!theme plain
+title Abbildung A.4: Sequenzdiagramm – Authentifizierungsablauf
+
+actor "Benutzer" as User
+participant "Browser" as Browser
+participant "Auth API" as AuthAPI
+participant "Auth Service" as AuthService
+participant "Database" as DB
+participant "Audit Service" as AuditService
+
+User -> Browser: Login-Formular ausfüllen
+activate Browser
+
+Browser -> AuthAPI: POST /api/auth/login\n{email, password}
+activate AuthAPI
+
+AuthAPI -> AuthAPI: Validierung mit\nexpress-validator
+
+alt Validierungsfehler
+  AuthAPI --> Browser: 400 Bad Request\n{errors}
+  Browser --> User: Fehlermeldung anzeigen
+else Validierung erfolgreich
+
+  AuthAPI -> AuthService: login(email, password)
+  activate AuthService
+
+  AuthService -> DB: SELECT user WHERE email = ?
+  activate DB
+  DB --> AuthService: User-Daten (id, email, password_hash, role)
+  deactivate DB
+
+  AuthService -> AuthService: verifyPassword(password, hash)\n[bcrypt.compareSync]
+
+  alt Passwort falsch
+    AuthService --> AuthAPI: null
+    AuthAPI -> AuditService: log(login_failed, email, IP)
+    activate AuditService
+    AuditService -> DB: INSERT INTO audit_log
+    deactivate AuditService
+    AuthAPI --> Browser: 401 Unauthorized\n{error: "Invalid credentials"}
+    Browser --> User: Login fehlgeschlagen
+
+  else Passwort korrekt
+    AuthService -> AuthService: createToken(userId)\n[JWT sign, expiresIn: 7d]
+    AuthService --> AuthAPI: {token, user}
+    deactivate AuthService
+
+    AuthAPI -> AuditService: log(login, userId, email, IP)
+    activate AuditService
+    AuditService -> DB: INSERT INTO audit_log
+    deactivate AuditService
+
+    AuthAPI --> Browser: 200 OK\n{token, user: {id, email, role}}
+    deactivate AuthAPI
+
+    Browser -> Browser: localStorage.setItem('token')
+    Browser --> User: Login erfolgreich\nWeiterleitung zu Dashboard
+    deactivate Browser
+  end
+end
+
+@enduml

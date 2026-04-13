@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zuhöreranalyse – Admin</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .analytics-intro {
+      max-width: 60ch;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .analytics-card {
+      background: var(--color-white);
+      padding: 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+      border: 1px solid var(--color-border);
+    }
+    .analytics-card .value {
+      font-size: var(--text-h2);
+      font-weight: 700;
+      color: var(--color-primary);
+      line-height: var(--leading-tight);
+    }
+    .analytics-card .label {
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      margin-top: 0.25rem;
+    }
+    .top-episodes-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .top-episodes-table th {
+      text-align: left;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-text-secondary);
+      padding: 0.5rem 0.75rem;
+      border-bottom: 2px solid var(--color-border);
+    }
+    .top-episodes-table td {
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--color-border);
+      color: var(--color-text);
+    }
+    .top-episodes-table tr:last-child td { border-bottom: none; }
+    .top-episodes-table .count {
+      font-weight: 600;
+      color: var(--color-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .source-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .source-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 0.9rem;
+    }
+    .source-list li:last-child { border-bottom: none; }
+    .source-list .source-name { color: var(--color-text); }
+    .source-list .source-count { font-weight: 600; color: var(--color-primary); font-variant-numeric: tabular-nums; }
+    .analytics-two-col {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    @media (max-width: 768px) {
+      .analytics-two-col { grid-template-columns: 1fr; }
+    }
+    .analytics-section-title {
+      font-size: var(--text-h3);
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      color: var(--color-text);
+    }
+    .empty-state {
+      padding: 2rem;
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <header class="site-header">
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Inhalte</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html">Aus RSS importieren</a></li>
+          <li><a href="distribution.html">Distribution (RedCircle)</a></li>
+          <li class="nav-section">Auswertung</li>
+          <li><a href="stats.html">Statistik (Admin)</a></li>
+          <li><a href="analytics.html" class="active">Zuhöreranalyse</a></li>
+          <li class="nav-section">System</li>
+          <li><a href="audit.html">DSGVO / Audit-Log</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
+      <h1>Zuhöreranalyse</h1>
+      <p class="analytics-intro">
+        Wie oft werden eure Podcasts gehört? Hier siehst du Abspielvorgänge aus der Webplattform
+        und eine Aufschlüsselung nach Quellen.
+      </p>
+
+      <div class="analytics-grid" id="analytics-cards">
+        <div class="analytics-card">
+          <div class="value" id="total-listens">–</div>
+          <div class="label">Abspielvorgänge gesamt</div>
+        </div>
+        <div class="analytics-card">
+          <div class="value" id="listens-7d">–</div>
+          <div class="label">Letzte 7 Tage</div>
+        </div>
+        <div class="analytics-card">
+          <div class="value" id="listens-30d">–</div>
+          <div class="label">Letzte 30 Tage</div>
+        </div>
+      </div>
+
+      <div class="analytics-two-col">
+        <section>
+          <h2 class="analytics-section-title">Top-Episoden</h2>
+          <table class="top-episodes-table" id="top-episodes">
+            <thead>
+              <tr>
+                <th style="width:50px;">#</th>
+                <th>Episode</th>
+                <th style="width:100px;text-align:right;">Aufrufe</th>
+              </tr>
+            </thead>
+            <tbody id="top-episodes-body">
+              <tr><td colspan="3" class="empty-state">Lade Daten...</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h2 class="analytics-section-title">Quellen</h2>
+          <ul class="source-list" id="source-list">
+            <li class="empty-state">Lade Daten...</li>
+          </ul>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+    if (!getToken()) { window.location = '/admin/'; }
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault(); clearToken(); location.href = '/admin/';
+    };
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    async function loadAnalytics() {
+      try {
+        const res = await fetch(API + '/analytics', {
+          headers: { 'Authorization': 'Bearer ' + getToken() },
+        });
+        if (res.status === 401) { clearToken(); location.href = '/admin/?expired=1'; return; }
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById('total-listens').textContent = data.totalListens ?? 0;
+        document.getElementById('listens-7d').textContent = data.listensLast7Days ?? 0;
+        document.getElementById('listens-30d').textContent = data.listensLast30Days ?? 0;
+
+        const tbody = document.getElementById('top-episodes-body');
+        if (data.topEpisodes && data.topEpisodes.length) {
+          tbody.innerHTML = data.topEpisodes.map((ep, i) =>
+            `<tr>
+              <td>${i + 1}</td>
+              <td>${escapeHtml(ep.title)}</td>
+              <td style="text-align:right;" class="count">${ep.listens}</td>
+            </tr>`
+          ).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Noch keine Abspielvorgänge erfasst.</td></tr>';
+        }
+
+        const sourceEl = document.getElementById('source-list');
+        if (data.sourceBreakdown && data.sourceBreakdown.length) {
+          sourceEl.innerHTML = data.sourceBreakdown.map(s =>
+            `<li><span class="source-name">${escapeHtml(s.source)}</span><span class="source-count">${s.count}</span></li>`
+          ).join('');
+        } else {
+          sourceEl.innerHTML = '<li class="empty-state">Noch keine Daten.</li>';
+        }
+      } catch (_) {}
+    }
+
+    loadAnalytics();
+  </script>
+</body>
+</html>

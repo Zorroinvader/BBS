@@ -1,26 +1,26 @@
-/* Admin panel: left sidebar + main content, blue buttons/links on white */
+/* ── Admin panel ── sidebar + main, clear hierarchy, production-ready */
 
 .admin-page body { background: var(--color-base); }
 
-/* Auth/login layout */
+/* Auth / login layout */
 .admin-auth-wrap {
-  max-width: 460px;
+  max-width: 400px;
   margin: 3.5rem auto;
   padding: 0 1.5rem;
 }
 
 .admin-panel {
   background: var(--color-white);
-  border-radius: 16px;
-  padding: 2rem 2.25rem;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
-  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: var(--radius-lg);
+  padding: 2rem 2rem;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 16px rgba(30, 58, 95, 0.08);
 }
 
 .admin-panel-title {
   margin: 0 0 0.75rem 0;
-  font-size: 1.4rem;
-  font-weight: 600;
+  font-size: var(--text-h2);
+  font-weight: 700;
   color: var(--color-text);
 }
 
@@ -38,20 +38,19 @@
 .admin-panel input[type="number"],
 .admin-panel textarea {
   width: 100%;
-  padding: 0.65rem 0.75rem;
-  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   margin-bottom: 0.75rem;
-  font-size: 0.95rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  font-size: var(--text-sm);
+  transition: border-color 0.12s ease;
 }
 
 .admin-panel input:focus-visible,
 .admin-panel textarea:focus-visible {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary-hover);
-  background-color: #f9fafb;
+  box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.15);
 }
 
 .btn-full {
@@ -60,22 +59,23 @@
 }
 
 .admin-alert {
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  margin: 0.35rem 0 0.75rem 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  margin: var(--space-xs) 0 var(--space-md) 0;
 }
 
 .admin-alert-warn {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fbbf24;
+  background: rgba(202, 138, 4, 0.08);
+  color: var(--color-warning);
+  border: 1px solid rgba(202, 138, 4, 0.25);
 }
 
 .admin-alert-error {
-  background: #fee2e2;
-  color: #b91c1c;
-  border: 1px solid #f87171;
+  background: rgba(220, 38, 38, 0.06);
+  color: var(--color-error);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
 .admin-page .admin-user {
@@ -107,57 +107,64 @@
 .admin-sidebar-nav li { margin: 0; }
 .admin-sidebar-nav a {
   display: block;
-  padding: 0.55rem 1.15rem 0.55rem 1.15rem;
+  padding: 0.5rem 1rem;
   color: var(--color-text);
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
-  margin-bottom: 0.25rem;
+  font-size: var(--text-sm);
+  margin-bottom: 2px;
   word-wrap: break-word;
+  transition: background-color 0.1s ease, color 0.1s ease;
 }
 .admin-sidebar-nav a:hover {
-  background: rgba(30, 58, 95, 0.08);
+  background: var(--color-primary-light);
   color: var(--color-primary);
   text-decoration: none;
 }
-.admin-sidebar-nav a.active,
-.admin-sidebar-nav a[href]:focus-visible {
+.admin-sidebar-nav a.active {
   background: rgba(30, 58, 95, 0.12);
   color: var(--color-primary);
+  font-weight: 600;
+  border-left: 3px solid var(--color-primary);
+  padding-left: calc(1rem - 3px);
+}
+.admin-sidebar-nav a:focus-visible {
   outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 .admin-sidebar-nav .nav-section {
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #fff;
-  padding: 0.32rem 0.95rem 0.24rem;
-  margin: 0.9rem 0.35rem 0.4rem;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
-  border-radius: 999px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+  padding: 0 1rem;
+  margin: var(--space-md) 0 var(--space-xs) 0;
 }
-.admin-sidebar-nav .nav-section:first-child { margin-top: 0.2rem; }
+.admin-sidebar-nav .nav-section:first-child { margin-top: var(--space-xs); }
 .admin-main {
   flex: 1;
-  padding: 2rem 2.5rem;
-  max-width: 960px;
+  padding: var(--space-lg) var(--space-section);
+  max-width: 1000px;
   margin: 0 auto;
   background: var(--color-base);
   color: var(--color-text);
 }
 
 .admin-main > h1 {
-  font-size: 1.45rem;
-  margin-bottom: 0.5rem;
+  font-size: var(--text-h1);
+  font-weight: 700;
+  margin: 0 0 var(--space-xs) 0;
+  letter-spacing: -0.02em;
 }
 .admin-main > p {
   max-width: 60ch;
-  line-height: 1.6;
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-secondary);
 }
 .admin-main > p + p {
-  margin-top: 0.25rem;
+  margin-top: var(--space-xs);
 }
 
 /* Header look on admin pages:
@@ -214,19 +221,21 @@
   color: #fff;
 }
 
-/* Buttons and links on white/light: use blue (visible) */
+/* ── Admin buttons — clear primary / secondary hierarchy ── */
 .admin-main .btn,
 .admin-page .admin-main a.btn {
   background: var(--color-primary) !important;
   color: var(--color-white) !important;
   border: none !important;
-  padding: 0.6rem 1.1rem;
-  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-md);
   font-weight: 600;
   text-decoration: none;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
+  transition: background-color 0.12s ease;
 }
 .admin-main .btn:hover,
 .admin-page .admin-main a.btn:hover {
@@ -236,16 +245,17 @@
 }
 .admin-main .btn:focus-visible,
 .admin-main a.btn:focus-visible {
-  outline: 3px solid var(--color-primary-hover);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 .admin-main .btn-secondary {
   background: transparent !important;
   color: var(--color-primary) !important;
-  border: 2px solid var(--color-primary) !important;
+  border: 1px solid var(--color-border) !important;
 }
 .admin-main .btn-secondary:hover {
-  background: rgba(30, 58, 95, 0.08) !important;
+  background: var(--color-primary-light) !important;
+  border-color: var(--color-primary) !important;
   color: var(--color-primary) !important;
 }
 
@@ -262,9 +272,9 @@
 .admin-main .admin-form,
 .admin-main .upload-form {
   background: var(--color-white);
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
   color: var(--color-text);
 }
 .admin-main .admin-form label,

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSGVO / Audit-Log – Admin</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .audit-intro {
+      max-width: 60ch;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+    .audit-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .audit-table th {
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--color-text-secondary);
+      padding: 0.5rem 0.6rem;
+      border-bottom: 2px solid var(--color-border);
+      white-space: nowrap;
+    }
+    .audit-table td {
+      padding: 0.55rem 0.6rem;
+      border-bottom: 1px solid var(--color-border);
+      color: var(--color-text);
+      vertical-align: top;
+    }
+    .audit-table tr:last-child td { border-bottom: none; }
+    .audit-table .action-badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .action-login { background: rgba(16,185,129,0.15); color: #065f46; }
+    .action-login_failed { background: rgba(239,68,68,0.15); color: #b91c1c; }
+    .action-create { background: rgba(37,99,235,0.15); color: #1e40af; }
+    .action-update { background: rgba(234,179,8,0.15); color: #854d0e; }
+    .action-delete { background: rgba(239,68,68,0.15); color: #b91c1c; }
+    .action-anonymize { background: rgba(107,114,128,0.15); color: #374151; }
+    .action-export { background: rgba(107,114,128,0.15); color: #374151; }
+    .audit-details {
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--color-text-secondary);
+      font-size: 0.8rem;
+    }
+    .audit-time {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      color: var(--color-text-secondary);
+    }
+    .dsgvo-section {
+      margin-top: 2.5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--color-border);
+    }
+    .dsgvo-form {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      max-width: 480px;
+    }
+    .dsgvo-form label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--color-text);
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .dsgvo-form input {
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      width: 120px;
+    }
+    .empty-state {
+      padding: 2rem;
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: 0.95rem;
+    }
+    .section-title {
+      font-size: var(--text-h3);
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      color: var(--color-text);
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <header class="site-header">
+    <div class="site-header-bg">
+      <img src="/images/header-bg.jpg" alt="" width="2048" height="1363" loading="eager" decoding="async" class="site-header-img">
+    </div>
+    <div class="site-header-overlay">
+      <a href="/" class="site-logo">
+        <img src="/images/logo_bbs2wob.png" alt="BBS II Wolfsburg">
+        <span>Berufsbildende Schulen</span>
+      </a>
+      <nav class="site-nav">
+        <span id="user-email" class="admin-user"></span>
+        <a href="#" id="logout" style="color: rgba(255,255,255,0.95);">Abmelden</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <nav>
+        <ul class="admin-sidebar-nav">
+          <li class="nav-section">Inhalte</li>
+          <li><a href="/admin/">Dashboard</a></li>
+          <li><a href="upload.html">Neuen Podcast hochladen</a></li>
+          <li><a href="import-rss.html">Aus RSS importieren</a></li>
+          <li><a href="distribution.html">Distribution (RedCircle)</a></li>
+          <li class="nav-section">Auswertung</li>
+          <li><a href="stats.html">Statistik (Admin)</a></li>
+          <li><a href="analytics.html">Zuhöreranalyse</a></li>
+          <li class="nav-section">System</li>
+          <li><a href="audit.html" class="active">DSGVO / Audit-Log</a></li>
+          <li><a href="db-log.html">Live DB-Log</a></li>
+          <li class="nav-section">Allgemein</li>
+          <li><a href="/statistik.html" target="_blank">Statistik (öffentlich)</a></li>
+          <li><a href="/">Zur Startseite</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main class="admin-main">
+      <h1>DSGVO / Audit-Log</h1>
+      <p class="audit-intro">
+        DSGVO-konformes Protokoll aller sicherheitsrelevanten Zugriffe und Änderungen.
+        Hier können außerdem Datenauskunft (Art. 15) und Datenlöschung (Art. 17) durchgeführt werden.
+      </p>
+
+      <h2 class="section-title">Audit-Protokoll</h2>
+      <div style="overflow-x:auto;">
+        <table class="audit-table" id="audit-table">
+          <thead>
+            <tr>
+              <th>Zeitpunkt</th>
+              <th>Aktion</th>
+              <th>Ressource</th>
+              <th>Benutzer</th>
+              <th>Details</th>
+              <th>IP</th>
+            </tr>
+          </thead>
+          <tbody id="audit-body">
+            <tr><td colspan="6" class="empty-state">Lade Audit-Log...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <section class="dsgvo-section">
+        <h2 class="section-title">DSGVO-Funktionen</h2>
+        <p style="color:var(--color-text-secondary);font-size:0.9rem;margin-bottom:1.25rem;">
+          Art. 15 – Datenauskunft: Exportiere alle zu einem Benutzer gespeicherten Daten.<br>
+          Art. 17 – Datenlöschung: Anonymisiere einen Benutzer und entkopple alle zugeordneten Inhalte.
+        </p>
+
+        <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+          <div>
+            <h3 style="font-size:0.95rem;font-weight:600;margin:0 0 0.75rem 0;">Datenauskunft (Art. 15)</h3>
+            <div class="dsgvo-form">
+              <div>
+                <label for="export-user-id">Benutzer-ID</label>
+                <input id="export-user-id" type="number" min="1" placeholder="z.B. 2">
+              </div>
+              <button class="btn" onclick="exportUserData()">Daten exportieren</button>
+            </div>
+            <pre id="export-result" style="margin-top:0.75rem;font-size:0.8rem;max-height:200px;overflow:auto;background:#f8f8f8;padding:0.75rem;border-radius:8px;display:none;"></pre>
+          </div>
+
+          <div>
+            <h3 style="font-size:0.95rem;font-weight:600;margin:0 0 0.75rem 0;">Datenlöschung (Art. 17)</h3>
+            <div class="dsgvo-form">
+              <div>
+                <label for="anon-user-id">Benutzer-ID</label>
+                <input id="anon-user-id" type="number" min="1" placeholder="z.B. 2">
+              </div>
+              <button class="btn" style="background:#c53030!important;" onclick="anonymizeUser()">Anonymisieren</button>
+            </div>
+            <p id="anon-result" style="margin-top:0.5rem;font-size:0.85rem;color:var(--color-text-secondary);"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = '/api';
+    const tokenKey = 'podcast_token';
+    function getToken() { return localStorage.getItem(tokenKey); }
+    function clearToken() { localStorage.removeItem(tokenKey); }
+    function authHeaders() { return { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' }; }
+    if (!getToken()) { window.location = '/admin/'; }
+
+    document.getElementById('logout').onclick = (e) => {
+      e.preventDefault(); clearToken(); location.href = '/admin/';
+    };
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+
+    function formatTime(ts) {
+      if (!ts) return '–';
+      const d = new Date(ts);
+      return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function actionBadge(action) {
+      const cls = 'action-' + (action || '').replace(/[^a-z_]/gi, '');
+      return `<span class="action-badge ${cls}">${escapeHtml(action)}</span>`;
+    }
+
+    async function loadAuditLog() {
+      try {
+        const res = await fetch(API + '/audit?limit=100', { headers: authHeaders() });
+        if (res.status === 401) { clearToken(); location.href = '/admin/?expired=1'; return; }
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.getElementById('audit-body');
+        if (!data.entries?.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Keine Einträge vorhanden.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.entries.map(e => `
+          <tr>
+            <td class="audit-time">${formatTime(e.created_at)}</td>
+            <td>${actionBadge(e.action)}</td>
+            <td>${escapeHtml(e.resource || '–')}${e.resource_id ? ' #' + e.resource_id : ''}</td>
+            <td>${e.user_id ? '#' + e.user_id : '–'}</td>
+            <td class="audit-details" title="${escapeHtml(e.details || '')}">${escapeHtml(e.details || '–')}</td>
+            <td style="font-size:0.8rem;color:var(--color-text-secondary);">${escapeHtml(e.ip_address || '–')}</td>
+          </tr>
+        `).join('');
+      } catch (_) {}
+    }
+
+    async function exportUserData() {
+      const userId = document.getElementById('export-user-id').value;
+      if (!userId) { alert('Bitte Benutzer-ID eingeben.'); return; }
+      const res = await fetch(API + '/audit/export/' + userId, { headers: authHeaders() });
+      const pre = document.getElementById('export-result');
+      if (res.ok) {
+        const data = await res.json();
+        pre.textContent = JSON.stringify(data, null, 2);
+        pre.style.display = 'block';
+      } else {
+        const err = await res.json();
+        pre.textContent = 'Fehler: ' + (err.error || res.statusText);
+        pre.style.display = 'block';
+      }
+    }
+
+    async function anonymizeUser() {
+      const userId = document.getElementById('anon-user-id').value;
+      if (!userId) { alert('Bitte Benutzer-ID eingeben.'); return; }
+      if (!confirm('Benutzer #' + userId + ' wirklich anonymisieren? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+      const res = await fetch(API + '/audit/anonymize/' + userId, { method: 'POST', headers: authHeaders() });
+      const resultEl = document.getElementById('anon-result');
+      if (res.ok) {
+        const data = await res.json();
+        resultEl.textContent = data.message || 'Anonymisierung durchgeführt.';
+        resultEl.style.color = '#065f46';
+        loadAuditLog();
+      } else {
+        const err = await res.json();
+        resultEl.textContent = 'Fehler: ' + (err.error || res.statusText);
+        resultEl.style.color = '#b91c1c';
+      }
+    }
+
+    loadAuditLog();
+  </script>
+</body>
+</html>

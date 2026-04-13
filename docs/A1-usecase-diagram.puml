@@ -1,0 +1,63 @@
+@startuml
+!theme plain
+title Abbildung A.1: Use-Case-Diagramm – BBS Podcast-Plattform
+
+left to right direction
+
+actor "Administrator" as Admin
+actor "Editor" as Editor
+actor "Viewer" as Viewer
+actor "Gast" as Guest
+
+rectangle "BBS Podcast-Plattform" {
+  usecase "Login" as UC1
+  usecase "Episode hochladen" as UC2
+  usecase "Episode bearbeiten" as UC3
+  usecase "Episode löschen" as UC4
+  usecase "RSS-Feed importieren" as UC5
+  usecase "Benutzer verwalten" as UC6
+  usecase "Episode abspielen" as UC7
+  usecase "Episode durchsuchen" as UC8
+  usecase "RSS-Feed abonnieren" as UC9
+  usecase "Statistiken einsehen" as UC10
+  usecase "Distribution verwalten" as UC11
+  usecase "RedCircle Publishing" as UC12
+  usecase "Analytics abrufen" as UC13
+  usecase "Audit-Log einsehen" as UC14
+}
+
+' Administrator relationships
+Admin --> UC1
+Admin --> UC2
+Admin --> UC3
+Admin --> UC4
+Admin --> UC5
+Admin --> UC6
+Admin --> UC10
+Admin --> UC11
+Admin --> UC12
+Admin --> UC13
+Admin --> UC14
+
+' Editor relationships
+Editor --> UC1
+Editor --> UC2
+Editor --> UC3
+Editor --> UC8
+
+' Viewer relationships
+Viewer --> UC1
+Viewer --> UC7
+Viewer --> UC8
+
+' Guest relationships
+Guest --> UC7
+Guest --> UC8
+Guest --> UC9
+
+' Include relationships
+UC2 ..> UC11 : <<include>>
+UC11 ..> UC12 : <<extend>>
+UC10 ..> UC13 : <<include>>
+
+@enduml

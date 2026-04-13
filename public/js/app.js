@@ -61,6 +61,15 @@ function playEpisode(btn) {
   }
   currentAudio = new Audio(url);
   currentAudio.play();
+  // Track listen event
+  const card = btn.closest('.podcast-card');
+  if (card && card.dataset.id) {
+    fetch('/api/analytics/listen/' + card.dataset.id, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'web' }),
+    }).catch(() => {});
+  }
 }
 
 function renderPodcastsList(episodes, container, viewMode = 'list') {

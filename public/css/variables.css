@@ -1,35 +1,57 @@
-/* Visual hierarchy & type scale aligned with Eleken, UIUXNews, and typography-in-design-systems guidance. */
+/* Design tokens — BBS II Wolfsburg Podcast-Plattform
+   Hierarchy: glanceable in <3 s — one focal point per section,
+   monospace numbers for alignment, semantic status colours. */
 :root {
-  /* BBS II Wolfsburg – institutional blue and warm off-white (aligned with bbs2-wob.de) */
+  /* Palette — institutional blue + warm off-white (bbs2-wob.de) */
   --color-primary: #1e3a5f;
   --color-primary-hover: #152a45;
+  --color-primary-light: rgba(30, 58, 95, 0.08);
   --color-white: #ffffff;
   --color-base: #f5f4ef;
-  --color-text: #222;
-  --color-text-secondary: #555;
+  --color-text: #1a1a2e;
+  --color-text-secondary: #5a5a6e;
   --color-border: #d0cec8;
-  --font-family: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
-  /* Header background (local copy so it loads fully) – overlay keeps text readable */
+
+  /* Semantic status — never used decoratively */
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-error: #dc2626;
+
+  /* Fonts — system UI for text, monospace for every number */
+  --font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Consolas', monospace;
+
   --header-bg-image: url('/images/header-bg.jpg');
 
-  /* Typography scale – modular hierarchy (H1 > H2 > H3 > body > small) so one clear focal point */
-  --text-base: 1rem;           /* 16px – body */
-  --text-sm: 0.875rem;        /* 14px – captions, meta */
-  --text-xs: 0.75rem;         /* 12px – labels, chips */
-  --text-lg: 1.125rem;        /* 18px – lead / intro */
-  --text-h3: 1.25rem;         /* 20px – card titles, row titles */
-  --text-h2: 1.5rem;          /* 24px – section headings */
-  --text-h1: 2rem;            /* 32px – page/hero title */
-  --text-hero: 2.25rem;       /* 36px – hero only, single focal point */
+  /* Type scale — single focal point per section */
+  --text-base: 1rem;           /* 16 px – body */
+  --text-sm: 0.875rem;         /* 14 px – captions, meta */
+  --text-xs: 0.75rem;          /* 12 px – labels, chips, badges */
+  --text-lg: 1.125rem;         /* 18 px – lead / intro */
+  --text-h3: 1.25rem;          /* 20 px – card titles */
+  --text-h2: 1.5rem;           /* 24 px – section headings */
+  --text-h1: 2rem;             /* 32 px – page title */
+  --text-hero: 2.25rem;        /* 36 px – hero focal */
+  --text-metric: 1.75rem;      /* 28 px – large KPI numbers */
 
-  /* Line height – readability (body generous, headings tighter) */
+  /* Line-height */
   --leading-tight: 1.2;
   --leading-snug: 1.25;
   --leading-normal: 1.5;
   --leading-relaxed: 1.6;
 
-  /* Spacing – proximity: tight within groups, macro between sections */
-  --space-section: 2.5rem;    /* between major sections */
-  --space-block: 1.25rem;     /* between heading and content */
-  --space-inline: 0.5rem;     /* between related inline elements */
+  /* 8 px spacing grid */
+  --space-xs: 0.25rem;     /*  4 px — micro */
+  --space-sm: 0.5rem;      /*  8 px — between related */
+  --space-md: 1rem;         /* 16 px — within sections */
+  --space-lg: 1.5rem;       /* 24 px — between groups */
+  --space-section: 2.5rem;  /* 40 px — major sections */
+  --space-block: 1.25rem;
+  --space-inline: 0.5rem;
+
+  /* Radius — friendly but restrained */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
 }

@@ -1,0 +1,78 @@
+@startuml
+!theme plain
+title Abbildung A.6: Sequenzdiagramm – RedCircle-Distribution
+
+actor "Administrator" as Admin
+participant "Distribution API" as DistAPI
+participant "RedCircle Service" as RCService
+participant "RedCircle API" as RedCircle
+participant "Spotify" as Spotify
+participant "Apple Podcasts" as Apple
+participant "YouTube" as YouTube
+participant "Database" as DB
+
+Admin -> DistAPI: POST /api/distribution/publish\n{episodeId}
+activate DistAPI
+
+DistAPI -> DB: SELECT episode WHERE id = ?
+activate DB
+DB --> DistAPI: Episode-Daten
+deactivate DB
+
+DistAPI -> RCService: publishEpisode(episode)
+activate RCService
+
+RCService -> RCService: getStatus()\n[Prüfe REDCIRCLE_API_KEY]
+
+alt RedCircle nicht konfiguriert
+  RCService --> DistAPI: {success: false, error: "Nicht konfiguriert"}
+  DistAPI --> Admin: 400 Bad Request
+else RedCircle konfiguriert
+
+  RCService -> RedCircle: POST /v1/shows/{showId}/episodes\n{title, description, audio_url,\nartwork_url, duration, status: "published"}
+  activate RedCircle
+
+  alt API-Fehler
+    RedCircle --> RCService: 4xx/5xx Error
+    RCService --> DistAPI: {success: false, error}
+    DistAPI --> Admin: Fehler bei Distribution
+
+  else Erfolgreiche Veröffentlichung
+    RedCircle -> RedCircle: Episode verarbeiten\nund bereitstellen
+
+    par Automatische Distribution
+      RedCircle -> Spotify: Episode zu Spotify pushen
+      activate Spotify
+      Spotify --> RedCircle: Spotify-URL
+      deactivate Spotify
+    and
+      RedCircle -> Apple: Episode zu Apple Podcasts pushen
+      activate Apple
+      Apple --> RedCircle: Apple-URL
+      deactivate Apple
+    and
+      RedCircle -> YouTube: Episode zu YouTube pushen
+      activate YouTube
+      YouTube --> RedCircle: YouTube-URL
+      deactivate YouTube
+    end
+
+    RedCircle --> RCService: {\n  id: "rc_episode_id",\n  spotify_url,\n  apple_url,\n  youtube_url,\n  url: "redcircle_url"\n}
+    deactivate RedCircle
+
+    RCService --> DistAPI: {\n  success: true,\n  redcircleEpisodeId,\n  platforms: {spotify_url, apple_url, youtube_url}\n}
+    deactivate RCService
+
+    DistAPI -> DB: UPDATE episodes\nSET spotify_url = ?, apple_url = ?, youtube_url = ?\nWHERE id = ?
+    activate DB
+    DB --> DistAPI: Update erfolgreich
+    deactivate DB
+
+    DistAPI --> Admin: 200 OK\n{success: true, platforms}
+    deactivate DistAPI
+
+    Admin -> Admin: Platform-Links anzeigen
+  end
+end
+
+@enduml
